@@ -725,28 +725,39 @@ async function loadAircraftPhoto(f){
 
   const aircraft=String(f.aircraft_type||"aircraft").trim();
   const livery=String(f.livery_name||"").trim();
+
+  // A model-only photo is not good enough for a live flight card. If the
+  // Live API cannot resolve the livery, do not guess one and accidentally
+  // show ANA/KLM/etc. for somebody else. Wait for the next live refresh.
+  if(!livery || /^(livery unavailable|unknown|n\/a|null)$/i.test(livery)){
+    aircraftPhotoCache.set((aircraft+"|").toLowerCase(),null);
+    box.innerHTML='<div class="aircraft-photo-empty">Livery unavailable, so no unverified aircraft photo is shown.</div>';
+    return;
+  }
+
   const key=(aircraft+"|"+livery).toLowerCase();
   if(aircraftPhotoCache.has(key)){
     if(box.dataset.flightId===flightKey)renderAircraftPhoto(box,aircraftPhotoCache.get(key));
     return;
   }
 
-  // The image and the verification evidence must come from genuinely
-  // independent sources. Wikimedia Commons supplies the display image;
-  // Planespotters independently corroborates the aircraft/operator text.
+  // The Live API gives us the livery identity; now search several image
+  // queries and reject candidates whose model/livery evidence does not match.
+  // Never fall back to a model-only result when a livery is known.
   try{
     const verifyUrl=API+
       "?detail=photo_verify&aircraft="+encodeURIComponent(aircraft)+
       "&livery="+encodeURIComponent(livery);
     const verifyResponse=await fetch(verifyUrl,{cache:"no-store"});
     const verification=verifyResponse.ok?await verifyResponse.json():null;
-
     const verificationVerified=Boolean(verification?.verified);
 
     const norm=s=>String(s||"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
     const aircraftNorm=norm(aircraft);
     const liveryNorm=norm(livery);
     const aircraftTokens=aircraftNorm.split(/\s+/).filter(t=>t.length>=2);
+    const liveryTokens=liveryNorm.split(/\s+/).filter(t=>t.length>=3);
+    const liveryKey=liveryTokens[0]||liveryNorm;
     const modelAliases=[...new Set([
       aircraft,
       aircraft.replace(/\b(freighter|cargo|passenger|combi|heavy)\b/ig," ").replace(/\s+/g," ").trim(),
@@ -755,13 +766,14 @@ async function loadAircraftPhoto(f){
       aircraft.replace(/\b(a)[ -]?(\d{3})\b/ig,"A$2"),
       aircraft.replace(/\b(b)[ -]?(\d{3})\b/ig,"B$2")
     ].map(x=>String(x||"").trim()).filter(Boolean))];
-    const modelNorm=norm(modelAliases[0]||aircraft);
 
     const queries=[...new Set([
       [livery,aircraft].filter(Boolean).join(" "),
       [aircraft,livery].filter(Boolean).join(" "),
-      ...modelAliases.map(x=>x+" aircraft"),
-      ...modelAliases
+      livery+" "+modelAliases[1],
+      livery+" aircraft",
+      ...modelAliases.map(x=>x+" "+livery),
+      ...modelAliases.map(x=>x+" aircraft "+livery)
     ].filter(Boolean))];
 
     const candidates=[];
@@ -775,7 +787,7 @@ async function loadAircraftPhoto(f){
       for(const p of Object.values(d.query?.pages||{})){
         if(p?.thumbnail?.source)candidates.push(p);
       }
-      if(candidates.length>=30)break;
+      if(candidates.length>=60)break;
     }
 
     const aircraftWords=/\b(aircraft|airliner|airplane|aeroplane|aviation|jet|helicopter)\b/i;
@@ -790,50 +802,69 @@ async function loadAircraftPhoto(f){
       const modelEvidence=modelAliases.some(alias=>{
         const a=norm(alias);
         return a && titleNorm.includes(a);
-      }) || Boolean(modelNorm&&titleNorm.includes(modelNorm));
+      });
       const familyEvidence=modelAliases.some(alias=>{
         const tokens=norm(alias).split(/\s+/).filter(t=>t.length>=2);
         return tokens.length>=2 && tokens.slice(0,2).every(t=>titleNorm.includes(t));
       });
-      const liveryEvidence=!liveryNorm||titleNorm.includes(liveryNorm)||text.includes(liveryNorm);
+      const liveryEvidence=Boolean(
+        (liveryNorm && titleNorm.includes(liveryNorm)) ||
+        (liveryKey && (titleNorm.includes(liveryKey)||text.includes(liveryKey)))
+      );
 
-      if(modelEvidence)score+=24;
-      else if(familyEvidence)score+=18;
-      else if(aircraftTokens.some(t=>titleNorm.includes(t)))score+=5;
-      if(liveryNorm&&liveryEvidence)score+=14;
+      // Strongly reject a known competing airline/livery. This is the part
+      // that prevents a KLM flight from receiving an ANA photo just because
+      // both are 787s. Humans have somehow survived this long without this.
+      const competingAirlines=[
+        "ana","japan airlines","jal","klm","air france","lufthansa",
+        "british airways","emirates","qatar","etihad","turkish airlines",
+        "singapore airlines","cathay pacific","united airlines","american airlines",
+        "delta air lines","southwest","jetblue","air canada","qantas","iberia",
+        "swiss","ryanair","easyjet","saudia","egyptair","ethiopian airlines",
+        "dhl","fedex","ups"
+      ];
+      const wrongCompetingAirline=competingAirlines.some(name=>{
+        const n=norm(name);
+        return n && n!==liveryNorm && titleNorm.includes(n) && !liveryNorm.includes(n);
+      });
+
+      if(modelEvidence)score+=28;
+      else if(familyEvidence)score+=20;
+      else if(aircraftTokens.some(t=>titleNorm.includes(t)))score+=4;
+      if(liveryEvidence)score+=28;
+      else score-=45;
+      if(verificationVerified)score+=18;
       if(aircraftWords.test(description))score+=6;
-      if(badWords.test(description)||badWords.test(title))score-=60;
+      if(wrongCompetingAirline)score-=80;
+      if(badWords.test(description)||badWords.test(title))score-=100;
       if(/\b(747|737|777|787|a3[0-9]{2}|a220|a330|a340|a350|a380|md[- ]?11|md[- ]?80|crj|embraer|e170|e175|e190|e195|atr|dash)\b/i.test(text))score+=3;
 
       const verified=Boolean(
         verificationVerified &&
         (modelEvidence||familyEvidence) &&
-        (!liveryNorm||liveryEvidence) &&
+        liveryEvidence &&
+        !wrongCompetingAirline &&
         !badWords.test(description) &&
         !badWords.test(title)
       );
-      const modelSafe=Boolean(
-        (modelEvidence||familyEvidence) &&
-        !badWords.test(description) &&
-        !badWords.test(title) &&
-        score>=18
-      );
-      return {p,score,verified,modelSafe};
+      return {p,score,verified};
     });
 
-    const verifiedBest=scored.filter(x=>x.verified&&x.score>=30).sort((a,b)=>b.score-a.score)[0];
-    const fallbackBest=scored.filter(x=>x.modelSafe).sort((a,b)=>b.score-a.score)[0];
-    const chosen=verifiedBest||fallbackBest;
+    // Keep searching through all query results and only accept a photo that
+    // passes BOTH model and livery verification. There is deliberately no
+    // model-only fallback.
+    const chosen=scored
+      .filter(x=>x.verified&&x.score>=60)
+      .sort((a,b)=>b.score-a.score)[0];
     const best=chosen?.p;
-    const bestScore=chosen?.score||0;
     const photo=best?{
       src:best.thumbnail.source,
       title:best.title||aircraft,
       url:best.fullurl||("https://commons.wikimedia.org/wiki/"+encodeURIComponent(best.title||"")),
       source:"Wikimedia Commons",
       verification_source:"Planespotters.net",
-      verified:Boolean(verifiedBest),
-      score:bestScore
+      verified:true,
+      score:chosen.score
     }:null;
 
     aircraftPhotoCache.set(key,photo);
@@ -843,7 +874,6 @@ async function loadAircraftPhoto(f){
     renderAircraftPhoto(box,null);
   }
 }
-
 function renderAircraftPhoto(box,photo){
   if(!box)return;
   if(!photo){
