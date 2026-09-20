@@ -26,7 +26,7 @@ function clearError(){$("error").classList.add("hidden");}
 
 function applySearch(){
   const term=$("search").value.trim().toLowerCase();
-  visibleFlights=!term?allFlights:allFlights.filter(f=>String(f.callsign||"").toLowerCase().includes(term)||String(f.username||"").toLowerCase().includes(term)||String(f.flight_id||"").toLowerCase()===term);
+  visibleFlights=!term?allFlights:allFlights.filter(f=>Object.values(f).some(v=>String(v??"").toLowerCase().includes(term)));
   render(visibleFlights);
 }
 function render(flights){
@@ -43,10 +43,10 @@ function render(flights){
     if(!marker){marker=L.marker([lat,lon],{icon:aircraftIcon(f.heading_deg)}).addTo(map);markers.set(id,marker)}
     else{marker.setLatLng([lat,lon]);marker.setIcon(aircraftIcon(f.heading_deg))}
     marker.bindTooltip(f.callsign||f.username||"Flight",{direction:"top"});
-    marker.off("click").on("click",()=>showDetails(f));
+    marker.off("click").on("click",()=>loadFlightDetail(f));
   }
   for(const [id,marker] of markers)if(!activeIds.has(id)){map.removeLayer(marker);markers.delete(id);const trail=trails.get(id+"_line");if(trail){map.removeLayer(trail);trails.delete(id+"_line")}}
-  if(lastSelectedId){const selected=flights.find(f=>String(f.flight_id)===lastSelectedId);if(selected)showDetails(selected)}
+  
 }
 async function loadFlightDetail(f){
   selectedFlight=f;
@@ -60,7 +60,7 @@ async function loadFlightDetail(f){
   renderFlightDetails(selectedFlight);
 }
 async function showWikiPhoto(f){
-  const query=[f.aircraft?.livery_name,f.aircraft?.aircraft_name,f.callsign].filter(Boolean).join(" ");
+  const query=[f.livery_name,f.aircraft_type,f.callsign].filter(Boolean).join(" ");
   if(!query)return;
   const url="https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch="+encodeURIComponent(query+" aircraft")+"&gsrnamespace=6&gsrlimit=1&prop=imageinfo&iiprop=url&iiurlwidth=800&format=json&origin=*";
   try{
@@ -74,7 +74,7 @@ function renderFlightDetails(f){
   const aircraftName=f.aircraft?.aircraft_name||"Aircraft type unavailable";
   const liveryName=f.aircraft?.livery_name||"Livery unavailable";
   const dest=f.destination?.identifier||f.destination?.name||"Unknown";
-  const routeText=Array.isArray(f.route)&&f.route.length?f.route.length+" historical position reports":"Route history unavailable";
+  const routeText=Array.isArray(f.route)&&f.route.length?f.route.length+" route points":"Route history unavailable";
   $("details").innerHTML=
     '<div class="card">'+
     (f.wiki_photo?'<img class="photo" src="'+escapeHtml(f.wiki_photo.url)+'" alt="Aircraft photo"><div class="photo-credit">Wikimedia Commons · '+escapeHtml(f.wiki_photo.title||"")+'</div>':"")+
@@ -141,7 +141,7 @@ async function loadAirport(icao){
   $("airportPanel").classList.remove("hidden");$("airportPanel").innerHTML='<div class="airport-title">'+escapeHtml(icao)+'</div><div class="muted">Loading live airport traffic…</div>';
   try{const r=await fetch(API+"?detail=airport&airport="+encodeURIComponent(icao),{cache:"no-store"});const d=await r.json();if(!r.ok)throw new Error(d.message||"Airport unavailable");renderAirportResults(d)}catch(e){$("airportPanel").innerHTML='<div class="error">'+escapeHtml(e.message)+'</div>'}
 }
-$("airportBtn").addEventListener("click",()=>{const q=$("search").value.trim().toUpperCase();if(/^[A-Z]{4}$/.test(q))loadAirport(q);else $("search").focus()});
+$("airportBtn").addEventListener("click",()=>{const q=$("search").value.trim().toUpperCase();if(/^[A-Z0-9]{4}$/.test(q))loadAirport(q);else $("search").focus()});
 
 
 // Live aircraft history trails
