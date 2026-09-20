@@ -597,8 +597,8 @@ function airportTowerIcon(){
   return L.divIcon({
     className:"airport-tower-wrap",
     html:'<div class="airport-tower" aria-label="Airport"><div class="airport-tower-hit"><svg viewBox="0 0 20 20"><path d="M3 18h14M5 18V7h10v11M4 7l6-5 6 5M7 10h2v2H7zm4 0h2v2h-2zm-4 4h2v2H7zm4 0h2v2h-2z"/></svg></div></div>',
-    iconSize:[44,44],
-    iconAnchor:[22,22]
+    iconSize:[30,30],
+    iconAnchor:[15,15]
   });
 }
 
