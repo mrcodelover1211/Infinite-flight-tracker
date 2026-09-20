@@ -145,3 +145,17 @@ Continue the previously agreed large tracker upgrade:
 - Preserve the booking UI as a simulation only.
 - Preserve backend error handling.
 - Preserve the user's preference for a clean map without airport-marker spam/jump scares.
+
+
+## Photo verification upgrade completed
+
+- Aircraft photo verification now uses **two genuinely independent ecosystems**:
+  - Wikimedia Commons supplies the displayed image.
+  - Planespotters.net independently corroborates the aircraft model and operator/livery text through the Supabase backend.
+- Wikipedia is no longer treated as an independent second source for aircraft photos.
+- If Planespotters cannot corroborate the model/operator, the tracker shows **no aircraft photo** instead of falling back to a generic or weakly matched image.
+- The Supabase `flights` Edge Function is now v23 and exposes `detail=photo_verify` for this runtime-only corroboration.
+- The frontend keeps the existing conservative model/livery scoring on Wikimedia results.
+- No permanent photo-verification or Live API history is stored.
+- Verified display images remain linked to their source page.
+
