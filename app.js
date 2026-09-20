@@ -602,8 +602,8 @@ function airportIconForZoom(a){
     return L.divIcon({
       className:"airport-icao-marker",
       html:'<div>'+icao+'</div>',
-      iconSize:[52,20],
-      iconAnchor:[26,10],
+      iconSize:[46,18],
+      iconAnchor:[23,9],
       pane:"airportPane"
     });
   }
@@ -1079,7 +1079,6 @@ function setPlaneSize(size){
 function setLabels(enabled){
   settings.labels=enabled;
   document.getElementById("map").classList.toggle("labels-hidden",!enabled);
-  document.querySelector('[data-setting="labels"]')?.classList.toggle("active",enabled);
   document.querySelector('[data-setting="labels"]')?.classList.toggle("active",enabled);
   if(airportsVisible)renderWorld();
 }
