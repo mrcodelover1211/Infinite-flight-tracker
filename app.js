@@ -394,6 +394,14 @@ function updateTrail(id,f,selected){
 }
 
 function selectFlight(f){
+  const oldId=String(selectedFlight?.flight_id||"");
+  const newId=String(f?.flight_id||"");
+  if(oldId&&oldId!==newId){
+    const oldTrail=trails.get(oldId);
+    if(oldTrail)map.removeLayer(oldTrail);
+    trails.delete(oldId);
+    trailHistory.delete(oldId);
+  }
   selectedFlight=f;
   renderFlights();
 }
@@ -585,30 +593,35 @@ function drawRoute(f){
   map.fitBounds(L.latLngBounds(pts),{padding:[40,40],maxZoom:7,animate:false});
 }
 
+function airportTowerIcon(){
+  return L.divIcon({
+    className:"airport-tower-wrap",
+    html:'<div class="airport-tower" aria-label="Airport">▥</div>',
+    iconSize:[12,12],
+    iconAnchor:[6,6]
+  });
+}
+
 function renderWorld(){
   if(!airportsVisible||!worldData)return;
   clearWorld();
 
-  const bounds=map.getBounds().pad(.25);
   const zoom=map.getZoom();
   const airports=(worldData.airports||[]).filter(a=>Number.isFinite(Number(a.latitude))&&Number.isFinite(Number(a.longitude)));
 
   for(const a of airports){
     const lat=Number(a.latitude),lon=normLon(a.longitude);
-    if(!bounds.contains([lat,lon]))continue;
-    const traffic=(Number(a.inbound_count)||0)+(Number(a.outbound_count)||0);
-    if(zoom<4&&traffic===0)continue;
-
     const marker=L.marker([lat,lon],{
-      icon:L.divIcon({
-        className:"airport-label-wrap",
-        html:(zoom>=5?'<button class="airport-label" type="button">'+esc(a.icao||"APT")+'</button>':'<div class="airport-dot"></div>'),
-        iconSize:(zoom>=5?[46,18]:[7,7]),
-        iconAnchor:(zoom>=5?[23,9]:[3.5,3.5])
-      })
+      icon:airportTowerIcon(),
+      keyboard:false,
+      zIndexOffset:2
     });
 
-    marker.bindTooltip((a.name||"Airport")+" · "+(a.icao||"")+ (settings.labels?" · "+traffic+" flights":""),{direction:"top"});
+    const traffic=(Number(a.inbound_count)||0)+(Number(a.outbound_count)||0);
+    marker.bindTooltip(
+      (a.name||"Airport")+" · "+(a.icao||"")+ (settings.labels?" · "+traffic+" flights":""),
+      {direction:"top"}
+    );
     marker.on("click",()=>{touch();loadAirport(a.icao)});
     marker.addTo(map);
     airportMarkers.set(a.icao,marker);
@@ -617,7 +630,7 @@ function renderWorld(){
   if(settings.atc&&zoom>=4){
     for(const a of worldData.atc||[]){
       const lat=Number(a.latitude),lon=normLon(a.longitude);
-      if(!Number.isFinite(lat)||!Number.isFinite(lon)||!bounds.contains([lat,lon]))continue;
+      if(!Number.isFinite(lat)||!Number.isFinite(lon))continue;
       const m=L.circleMarker([lat,lon],{radius:3,color:"#ffcf70",weight:1,fillColor:"#ffcf70",fillOpacity:.8});
       m.bindTooltip("ATC · "+esc(a.airport||"Center")+" · "+esc(a.username||"Unknown"),{direction:"top"}).addTo(map);
       atcMarkers.set((a.airport||"")+"|"+lat+"|"+lon,m);
@@ -626,6 +639,7 @@ function renderWorld(){
 
   $("airportCount").textContent=airports.length+" airports · "+atcMarkers.size+" ATC";
 }
+
 
 async function loadWorld(){
   const r=await fetch(API+"?server="+encodeURIComponent(selectedServer)+"&detail=world",{cache:"no-store"});
@@ -691,6 +705,7 @@ function renderAirport(d){
       return '<div class="flight-row airport-flight-row" data-flight="'+esc(f.flight_id||"")+'">'+
         '<div class="flight-main"><strong>'+esc(f.callsign||"Unknown")+'</strong><span>'+esc(other)+'</span></div>'+
         '<div class="flight-meta">'+esc(f.username||"")+" · "+esc(f.aircraft_type||"")+'</div>'+
+        (airportTab==="departures"?'<button class="small-btn book-flight-btn" data-book-flight="'+esc(f.flight_id||"")+'">Book</button>':"")+
       '</div>';
     }).join("")||'<div class="empty">No live flights returned.</div>');
 
@@ -698,13 +713,108 @@ function renderAirport(d){
   $("departuresTab").onclick=()=>{touch();airportTab="departures";loadAirport(a.icao)};
 
   document.querySelectorAll(".airport-flight-row").forEach(row=>{
-    row.onclick=()=>{
+    row.onclick=(e)=>{
+      if(e.target.closest(".book-flight-btn"))return;
       touch();
       const f=allFlights.find(x=>String(x.flight_id)===row.dataset.flight);
       if(f)loadFlightDetail(f);
     };
   });
+  document.querySelectorAll(".book-flight-btn").forEach(btn=>{
+    btn.onclick=e=>{
+      e.stopPropagation();
+      const f=allFlights.find(x=>String(x.flight_id)===btn.dataset.bookFlight);
+      if(f)openBooking(f,a);
+    };
+  });
 }
+
+function openBooking(f,airport){
+  const overlay=$("bookingOverlay");
+  overlay.classList.remove("hidden");
+  overlay.setAttribute("aria-hidden","false");
+  const origin=f.origin?.identifier||airport?.icao||"----";
+  const dest=f.destination?.identifier||"----";
+  const existingName=localStorage.getItem("ift_passenger_name")||"";
+  $("bookingContent").innerHTML=
+    '<div class="booking-card">'+
+      '<div class="booking-route"><strong>'+esc(origin)+'</strong><span>→</span><strong>'+esc(dest)+'</strong></div>'+
+      '<div class="muted">'+esc(f.callsign||"Flight")+" · "+esc(f.aircraft_type||"Aircraft")+'</div>'+
+      '<label class="booking-label">Passenger approved name<input id="passengerName" maxlength="40" value="'+esc(existingName)+'" placeholder="Enter passenger name"></label>'+
+      '<button class="primary-btn" id="confirmBookingBtn">Confirm booking</button>'+
+      '<div class="muted booking-note">This creates a tracker ticket only. It is not an Infinite Flight or real-world airline reservation.</div>'+
+    '</div>';
+  $("confirmBookingBtn").onclick=()=>confirmBooking(f,airport);
+}
+
+function closeBooking(){
+  $("bookingOverlay").classList.add("hidden");
+  $("bookingOverlay").setAttribute("aria-hidden","true");
+}
+
+function closeTicket(){
+  $("ticketOverlay").classList.add("hidden");
+  $("ticketOverlay").setAttribute("aria-hidden","true");
+}
+
+function makeBookingCode(){
+  return "IFT-"+Math.random().toString(36).slice(2,8).toUpperCase();
+}
+
+function confirmBooking(f,airport){
+  const name=$("passengerName").value.trim();
+  if(!name){$("passengerName").focus();return;}
+  localStorage.setItem("ift_passenger_name",name);
+
+  const aircraft=String(f.aircraft_type||"Aircraft");
+  const flightId=String(f.flight_id||"");
+  const seed=[...flightId].reduce((n,ch)=>n+ch.charCodeAt(0),0);
+  const seat=(seed%30+1)+String.fromCharCode(65+(seed%6));
+  const gate="G"+String(seed%48+1).padStart(2,"0");
+  const depTime=new Date(Date.now()+Math.max(15,Math.min(180,Number(f.eta_minutes)||60))*60000);
+  const ticket={
+    code:makeBookingCode(),
+    name,
+    callsign:f.callsign||"Flight",
+    aircraft,
+    origin:f.origin?.identifier||airport?.icao||"----",
+    destination:f.destination?.identifier||"----",
+    seat,gate,
+    time:depTime.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"}),
+    date:depTime.toLocaleDateString(),
+    flightId
+  };
+  localStorage.setItem("ift_ticket",JSON.stringify(ticket));
+  closeBooking();
+  renderTicket(ticket);
+}
+
+function renderTicket(ticket){
+  const overlay=$("ticketOverlay");
+  overlay.classList.remove("hidden");
+  overlay.setAttribute("aria-hidden","false");
+  const qrData=new URL(location.href);
+  qrData.search="";
+  qrData.hash="ticket="+encodeURIComponent(ticket.code);
+  const qr="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data="+encodeURIComponent(qrData.toString());
+  $("ticketContent").innerHTML=
+    '<div class="ticket">'+
+      '<div class="ticket-top"><span>INFINITE FLIGHT TRACKER</span><strong>BOARDING TICKET</strong></div>'+
+      '<div class="ticket-route"><div><small>FROM</small><b>'+esc(ticket.origin)+'</b></div><span>✈</span><div><small>TO</small><b>'+esc(ticket.destination)+'</b></div></div>'+
+      '<div class="ticket-grid">'+
+        '<div><small>PASSENGER</small><b>'+esc(ticket.name)+'</b></div>'+
+        '<div><small>FLIGHT</small><b>'+esc(ticket.callsign)+'</b></div>'+
+        '<div><small>DATE</small><b>'+esc(ticket.date)+'</b></div>'+
+        '<div><small>TIME</small><b>'+esc(ticket.time)+'</b></div>'+
+        '<div><small>GATE</small><b>'+esc(ticket.gate)+'</b></div>'+
+        '<div><small>SEAT</small><b>'+esc(ticket.seat)+'</b></div>'+
+      '</div>'+
+      '<div class="ticket-bottom"><div><small>BOOKING</small><b>'+esc(ticket.code)+'</b><small>APPROVED PASSENGER: '+esc(ticket.name)+'</small></div>'+
+      '<img class="ticket-qr" src="'+esc(qr)+'" alt="Ticket QR code"></div>'+
+      '<div class="ticket-note">QR opens this tracker with the approved passenger and booking reference.</div>'+
+    '</div>';
+}
+
 
 async function load(){
   if(loading||idlePaused)return;
@@ -1009,6 +1119,19 @@ $("statsClose").onclick=closeStats;
 
 $("settingsOverlay").onclick=e=>{if(e.target===$("settingsOverlay"))closeSettings()};
 $("statsOverlay").onclick=e=>{if(e.target===$("statsOverlay"))closeStats()};
+
+$("bookingClose").onclick=closeBooking;
+$("ticketClose").onclick=closeTicket;
+$("bookingOverlay").addEventListener("click",e=>{if(e.target===$("bookingOverlay"))closeBooking()});
+$("ticketOverlay").addEventListener("click",e=>{if(e.target===$("ticketOverlay"))closeTicket()});
+
+const ticketCode=new URLSearchParams(location.hash.replace(/^#/,"")).get("ticket");
+if(ticketCode){
+  try{
+    const saved=JSON.parse(localStorage.getItem("ift_ticket")||"null");
+    if(saved&&saved.code===ticketCode)renderTicket(saved);
+  }catch{}
+}
 
 document.addEventListener("keydown",e=>{
   if(e.key==="Escape"){
