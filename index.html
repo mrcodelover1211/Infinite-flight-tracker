@@ -284,7 +284,7 @@
   }
   loadScript("https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js")
     .catch(function(){ return loadScript("https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"); })
-    .then(function(){ return loadScript("app.js?v=livefix28"); })
+    .then(function(){ return loadScript("app.js?v=livefix29"); })
     .catch(function(){
       var el=document.getElementById("status");
       if(el){el.textContent="● Map library unavailable";el.className="status error";}
