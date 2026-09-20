@@ -645,11 +645,7 @@ async function loadAircraftPhoto(f){
     const verifyResponse=await fetch(verifyUrl,{cache:"no-store"});
     const verification=verifyResponse.ok?await verifyResponse.json():null;
 
-    if(!verification?.verified){
-      aircraftPhotoCache.set(key,null);
-      if(box.dataset.flightId===flightKey)renderAircraftPhoto(box,null);
-      return;
-    }
+    const verificationVerified=Boolean(verification?.verified);
 
     const norm=s=>String(s||"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
     const aircraftNorm=norm(aircraft);
@@ -691,31 +687,41 @@ async function loadAircraftPhoto(f){
       const modelEvidence=Boolean(modelNorm&&titleNorm.includes(modelNorm));
       const liveryEvidence=!liveryNorm||titleNorm.includes(liveryNorm)||text.includes(liveryNorm);
 
-      if(modelEvidence)score+=16;
-      else if(aircraftTokens.some(t=>titleNorm.includes(t)))score+=3;
+      if(modelEvidence)score+=20;
+      else if(aircraftTokens.some(t=>titleNorm.includes(t)))score+=4;
       if(liveryNorm&&liveryEvidence)score+=14;
       if(aircraftWords.test(description))score+=6;
-      if(badWords.test(description)||badWords.test(title))score-=50;
+      if(badWords.test(description)||badWords.test(title))score-=60;
       if(/\b(747|737|777|787|a3[0-9]{2}|a220|a330|a340|a350|a380|md[- ]?11|md[- ]?80|crj|embraer|e170|e175|e190|e195|atr|dash)\b/i.test(text))score+=3;
 
       const verified=Boolean(
+        verificationVerified &&
         modelEvidence &&
         (!liveryNorm||liveryEvidence) &&
         !badWords.test(description) &&
         !badWords.test(title)
       );
-      return {p,score,verified};
-    }).filter(x=>x.verified&&x.score>=30).sort((a,b)=>b.score-a.score);
+      const modelSafe=Boolean(
+        modelEvidence &&
+        !badWords.test(description) &&
+        !badWords.test(title) &&
+        score>=18
+      );
+      return {p,score,verified,modelSafe};
+    });
 
-    const best=scored[0]?.p;
-    const bestScore=scored[0]?.score||0;
+    const verifiedBest=scored.filter(x=>x.verified&&x.score>=30).sort((a,b)=>b.score-a.score)[0];
+    const fallbackBest=scored.filter(x=>x.modelSafe).sort((a,b)=>b.score-a.score)[0];
+    const chosen=verifiedBest||fallbackBest;
+    const best=chosen?.p;
+    const bestScore=chosen?.score||0;
     const photo=best?{
       src:best.thumbnail.source,
       title:best.title||aircraft,
       url:best.fullurl||("https://commons.wikimedia.org/wiki/"+encodeURIComponent(best.title||"")),
       source:"Wikimedia Commons",
       verification_source:"Planespotters.net",
-      verified:true,
+      verified:Boolean(verifiedBest),
       score:bestScore
     }:null;
 
