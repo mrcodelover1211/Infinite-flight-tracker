@@ -1829,7 +1829,6 @@ $("worldBtn").onclick=()=>{closeSettings();worldView()};
 $("fitSettingsBtn").onclick=()=>{closeSettings();fitAircraft()};
 $("randomSettingsBtn").onclick=()=>{closeSettings();randomFlight()};
 $("clearSelectionBtn").onclick=()=>{touch();selectedFlight=null;followingFlightId=null;renderFlights();$("details").className="empty";$("details").textContent="Select an aircraft on the map."};
-$("clearRouteBtn").onclick=()=>{touch();clearRoute()};
 $("nearbyFlightBtn").onclick=()=>{touch();if(selectedFlight&&validPos(selectedFlight))map.setView([Number(selectedFlight.latitude),normLon(selectedFlight.longitude)],Math.max(map.getZoom(),7),{animate:false});};
 $("rangeRingsBtn").onclick=()=>toggleRangeRings(selectedFlight);
 $("favoriteFlightBtn").onclick=()=>{if(selectedFlight)toggleFavorite(selectedFlight);else error("Select a flight first.");};
