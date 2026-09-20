@@ -33,6 +33,7 @@ const $=id=>document.getElementById(id);
 const markers=new Map();
 const aircraftPhotoCache=new Map();
 const airportMarkers=new Map();
+const airportFlightCache=new Map();
 const atcMarkers=new Map();
 const trails=new Map();
 const trailHistory=new Map();
@@ -1351,6 +1352,11 @@ async function loadAirport(icao){
 function renderAirport(d){
   const a=d.airport||{};
   const list=airportTab==="arrivals"?d.inbound||[]:d.outbound||[];
+  airportFlightCache.clear();
+  list.forEach(x=>{
+    const f=x.flight||{};
+    if(f.flight_id)airportFlightCache.set(String(f.flight_id),f);
+  });
   const lat=Number(a.latitude),lon=normLon(a.longitude);
   const traffic=(Number(d.inbound_count)||0)+(Number(d.outbound_count)||0);
   const airportInfo=[
@@ -1369,7 +1375,7 @@ function renderAirport(d){
     return '<div class="flight-row airport-flight-row" data-flight="'+esc(f.flight_id||"")+'">'+
       '<div class="airport-flight-info">'+
         '<div class="flight-main"><strong>'+esc(f.callsign||labelForFlight(f)||"Unknown")+'</strong><span>'+esc(other)+'</span></div>'+
-        '<div class="flight-meta">'+esc(f.username||"")+" · "+esc(f.aircraft_type||"")+' · '+(distance==null?"—":num(distance,1)+" NM")+(eta==null?"":" · ETA "+num(eta)+" min")+'</div>'+
+        '<div class="flight-meta">'+esc(f.username||"")+" · "+esc(f.aircraft_type||"")+' · '+(x.unavailable?'<span class="flight-status-badge stale">Waiting for live position</span>':(distance==null?"—":num(distance,1)+" NM")+(eta==null?"":" · ETA "+num(eta)+" min"))+'</div>'+
       '</div>'+
       (airportTab==="departures"?'<div class="airport-flight-action"><button class="small-btn book-flight-btn" data-book-flight="'+esc(f.flight_id||"")+'">Book</button></div>':"")+
     '</div>';
@@ -1405,14 +1411,14 @@ function renderAirport(d){
     row.onclick=(e)=>{
       if(e.target.closest(".book-flight-btn"))return;
       touch();
-      const f=allFlights.find(x=>String(x.flight_id)===row.dataset.flight);
-      if(f)loadFlightDetail(f);
+      const f=allFlights.find(x=>String(x.flight_id)===row.dataset.flight)||airportFlightCache.get(String(row.dataset.flight));
+      if(f&&validPos(f))loadFlightDetail(f);
     };
   });
   document.querySelectorAll(".book-flight-btn").forEach(btn=>{
     btn.onclick=e=>{
       e.stopPropagation();
-      const f=allFlights.find(x=>String(x.flight_id)===btn.dataset.bookFlight);
+      const f=allFlights.find(x=>String(x.flight_id)===btn.dataset.bookFlight)||airportFlightCache.get(String(btn.dataset.bookFlight));
       if(f)openBooking(f,a);
     };
   });
