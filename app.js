@@ -731,7 +731,6 @@ function renderDetails(f){
     '</div>'+
     '<div class="detail-actions">'+
       '<button class="small-btn" id="followBtn">'+(followingFlightId===String(f.flight_id)?"Stop following":"Follow")+'</button>'+
-      '<button class="small-btn" id="replayBtn">Replay</button>'+
       '<button class="small-btn" id="nearbyBtn">Nearby</button>'+
       '<button class="small-btn favorite-btn '+(favorite?"active":"")+'" id="favoriteBtn">'+(favorite?"★ Favorited":"☆ Favorite")+'</button>'+
       '<button class="small-btn" id="ringsBtn">Range rings</button>'+
@@ -743,9 +742,7 @@ function renderDetails(f){
     '<div id="nearbyTraffic">'+(nearby.map(x=>'<div class="nearby-row"><div class="nearby-main"><strong>'+esc(x.callsign||labelForFlight(x))+'</strong><span>'+esc(x.aircraft_type||"Aircraft")+' · '+num(x.altitude_ft)+' ft · '+num(x.speed_kt)+' kt</span></div><span class="chip">'+num(x._distance_nm,1)+' NM</span></div>').join("")||'<div class="muted">No nearby aircraft.</div>')+'</div>'+
   '</div>';
 
-  $("followBtn").onclick=()=>{touch();followingFlightId===String(f.flight_id)?stopFollowing():followFlight(f)};
-  $("replayBtn").onclick=()=>openReplay(f);
-  $("nearbyBtn").onclick=()=>{touch();if(validPos(f))map.setView([Number(f.latitude),normLon(f.longitude)],Math.max(map.getZoom(),7),{animate:false});};
+  $("followBtn").onclick=()=>{touch();followingFlightId===String(f.flight_id)?stopFollowing():followFlight(f)};  $("nearbyBtn").onclick=()=>{touch();if(validPos(f))map.setView([Number(f.latitude),normLon(f.longitude)],Math.max(map.getZoom(),7),{animate:false});};
   $("favoriteBtn").onclick=()=>{touch();toggleFavorite(f)};
   $("ringsBtn").onclick=()=>toggleRangeRings(f);
   $("shareBtn").onclick=()=>shareFlight(f);
@@ -2071,9 +2068,7 @@ $("settingsAirportMapBtn").onclick=()=>{
   toggleAirports(enabled);
 };
 $("settingsLayersBtn").onclick=()=>{closeSettings();openSettings();};
-$("settingsFleetBtn").onclick=()=>{closeSettings();openFleet();};
-$("settingsReplayBtn").onclick=()=>{closeSettings();selectedFlight?openReplay(selectedFlight):error("Select a flight first.");};
-$("settingsGlobeBtn").onclick=()=>{closeSettings();setMapMode("3d");};
+$("settingsFleetBtn").onclick=()=>{closeSettings();openFleet();};$("settingsGlobeBtn").onclick=()=>{closeSettings();setMapMode("3d");};
 $("settingsRecentBtn").onclick=()=>{closeSettings();openRecentFlights()};
 document.querySelectorAll("#mapModePicker button").forEach(b=>{
   b.onclick=()=>{touch();setMapMode(b.dataset.mapMode);}
@@ -2147,7 +2142,6 @@ document.addEventListener("keydown",e=>{
     closeSettings();
     closeStats();
     closeFleet();
-    closeReplay();
     closeGlobe();
   }
 });
