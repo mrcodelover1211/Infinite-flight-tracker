@@ -257,3 +257,25 @@ body[data-device="phone"] .check-row{height:36px;font-size:10px}
 .airport-location{font-size:9px;color:#718194;margin:4px 0 8px}
 @media(max-width:800px){.airport-photo img{height:140px}}
 @media(max-width:520px){.airport-photo img{height:115px}}
+
+
+/* Compact airport markers: blue departure icon when zoomed out, ICAO label when close. */
+.airport-departure-marker,.airport-icao-marker{
+  background:transparent!important;
+  border:0!important;
+  pointer-events:auto!important;
+}
+.airport-departure-marker>div{
+  width:24px;height:24px;display:flex;align-items:center;justify-content:center;
+  border-radius:50%;background:#1976d2;border:1px solid #fff;
+  box-shadow:0 1px 4px #000b;cursor:pointer;
+}
+.airport-departure-marker svg{
+  width:14px;height:14px;fill:#fff;transform:rotate(-12deg);
+}
+.airport-icao-marker>div{
+  min-width:42px;height:18px;padding:0 5px;display:flex;align-items:center;justify-content:center;
+  border-radius:4px;background:#f4f7fa;color:#15202b;border:1px solid #6d8294;
+  box-shadow:0 1px 3px #0008;font:700 9px/18px Arial,sans-serif;
+  letter-spacing:.3px;cursor:pointer;white-space:nowrap;
+}
