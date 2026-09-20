@@ -6,7 +6,7 @@ A public live flight tracker for Infinite Flight, built for fast map rendering o
 
 - Casual, Training and Expert server selection with a three-position slider
 - Live aircraft map refreshed every 15 seconds
-- Canvas-rendered aircraft markers to avoid thousands of DOM elements
+- Lightweight Leaflet aircraft markers with minimal DOM work
 - Direct normalized longitude handling so aircraft cannot drift to invalid world-copy positions
 - No continuous trail for every aircraft; only the selected/followed aircraft gets a short live trail
 - Aircraft-type-aware marker sizing/category styling
@@ -19,7 +19,7 @@ A public live flight tracker for Infinite Flight, built for fast map rendering o
 - Airport inbound/outbound traffic panels
 - Active ATC markers
 - Live data timestamps and source metadata
-- Wikimedia Commons aircraft/livery reference images when matching media is available
+- Aircraft and airport reference images with relevance filtering when matching media is available
 - Runtime AI-readable endpoint for current flight data
 - Automatic idle pause after 15 minutes without interaction to reduce battery and network use
 
