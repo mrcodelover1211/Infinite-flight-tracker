@@ -639,11 +639,37 @@ function renderWorld(){
   if(!airportsVisible||!worldData)return;
   clearWorld();
 
-  const bounds=map.getBounds().pad(0.35);
-  const airports=(worldData.airports||[]).filter(a=>{
+  const zoom=map.getZoom();
+  const bounds=map.getBounds().pad(0.25);
+  let airports=(worldData.airports||[]).filter(a=>{
     const lat=Number(a.latitude),lon=normLon(a.longitude);
     return Number.isFinite(lat)&&Number.isFinite(lon)&&bounds.contains([lat,lon]);
   });
+
+  // Never flood the map with every airport at world zoom. Thin the global
+  // airport set into a geographic grid so markers stay useful and separated.
+  if(zoom<6){
+    const maxMarkers=zoom<3?120:zoom<4?220:zoom<5?400:700;
+    if(airports.length>maxMarkers){
+      const cellSize=zoom<3?12:zoom<4?7:zoom<5?4:2;
+      const cells=new Map();
+      airports.sort((x,y)=>{
+        const xt=(Number(x.inbound_count)||0)+(Number(x.outbound_count)||0);
+        const yt=(Number(y.inbound_count)||0)+(Number(y.outbound_count)||0);
+        return yt-xt;
+      });
+      const selected=[];
+      for(const a of airports){
+        const lat=Number(a.latitude),lon=normLon(a.longitude);
+        const key=Math.floor((lat+90)/cellSize)+":"+Math.floor((lon+180)/cellSize);
+        if(cells.has(key))continue;
+        cells.set(key,true);
+        selected.push(a);
+        if(selected.length>=maxMarkers)break;
+      }
+      airports=selected;
+    }
+  }
 
   for(const a of airports){
     const lat=Number(a.latitude),lon=normLon(a.longitude);
