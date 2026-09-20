@@ -11,15 +11,20 @@
 <header class="topbar">
   <div class="brand"><strong>✈ Infinite Flight Tracker</strong><span id="status" class="status">Connecting…</span></div>
   <div class="controls">
-    <input id="search" autocomplete="off" placeholder="Search callsign, airline, aircraft, livery or airport">
-    <button id="searchBtn">Search</button><button id="resetBtn">Show all</button><button id="fitBtn">Fit aircraft</button><button id="airportBtn" aria-expanded="false">✈ Airport</button>
+    <div class="server-switch" aria-label="Infinite Flight server">
+      <button class="server-btn active" data-server="expert">Expert</button>
+      <button class="server-btn" data-server="training">Training</button>
+      <button class="server-btn" data-server="casual">Casual</button>
+    </div>
+    <input id="search" autocomplete="off" placeholder="Search callsign, pilot, aircraft, livery or airport">
+    <button id="searchBtn">Search</button><button id="resetBtn">Show all</button><button id="fitBtn">Fit</button><button id="airportsToggle">Airports</button><button id="airportBtn" aria-expanded="false">✈ Airport</button>
   </div>
 </header>
 <main>
   <section id="map" aria-label="Live aircraft map"></section>
   <aside id="panel">
     <div class="panel-head"><div><h2>Live flights</h2><div id="summary">Waiting for live data…</div></div><button id="refreshBtn" class="icon-btn" title="Refresh now">↻</button></div>
-    <div id="airportSearch" class="airport-search hidden"><input id="airportInput" maxlength="4" autocomplete="off" placeholder="ICAO airport, e.g. LTFM"><button id="airportGo">Open airport</button></div><div id="error" class="error hidden"></div><div id="details" class="empty">Select an aircraft on the map.</div><div id="airportPanel" class="airport-panel hidden"></div>
+    <div class="server-status"><span id="serverLabel">Expert</span> · <span id="serverCounts">—</span> flights · <span id="airportCount">Airports off</span></div><div id="airportSearch" class="airport-search hidden"><input id="airportInput" maxlength="4" autocomplete="off" placeholder="ICAO airport, e.g. LTFM"><button id="airportGo">Open airport</button></div><div id="error" class="error hidden"></div><div id="details" class="empty">Select an aircraft on the map.</div><div id="airportPanel" class="airport-panel hidden"></div>
   </aside>
 </main>
 <footer><span>Live data from Infinite Flight Live API · © OpenStreetMap contributors</span><span id="updated">Not updated yet</span></footer>
