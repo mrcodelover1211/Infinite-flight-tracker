@@ -1,7 +1,7 @@
 const API="https://vbifkgzmczbndtawawre.supabase.co/functions/v1/flights";
 const POLL_MS=15000;
 const map=L.map("map",{worldCopyJump:true,zoomControl:true}).setView([20,0],2);
-L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:18,attribution:"© OpenStreetMap contributors"}).addTo(map);
+L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap contributors"}).addTo(map);
 const markers=new Map();let allFlights=[];let visibleFlights=[];let lastSelectedId=null;let loading=false;
 const $=id=>document.getElementById(id);
 
