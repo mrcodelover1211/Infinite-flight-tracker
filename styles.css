@@ -249,3 +249,12 @@ body[data-device="phone"] .check-row{height:36px;font-size:10px}
   .ticket-route b{font-size:20px}
   .ticket-qr{width:110px;height:110px}
 }
+
+.airport-photo{margin:10px 0;border:1px solid #253140;background:#080d13;border-radius:9px;overflow:hidden}
+.airport-photo img{display:block;width:100%;height:170px;object-fit:cover}
+.airport-photo-loading,.airport-photo-empty{height:90px;display:flex;align-items:center;justify-content:center;color:#748395;font-size:10px}
+.airport-photo-credit{padding:5px 8px;font-size:9px;color:#728193;background:#0d141d}
+.airport-photo-credit a{color:#a9c6df;text-decoration:none}
+.airport-location{font-size:9px;color:#718194;margin:4px 0 8px}
+@media(max-width:800px){.airport-photo img{height:140px}}
+@media(max-width:520px){.airport-photo img{height:115px}}
