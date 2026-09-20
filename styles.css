@@ -69,7 +69,7 @@ main{height:calc(100% - 100px);display:grid;grid-template-columns:minmax(0,1fr) 
 .tabs button.active{background:#29405a}
 .aircraft-marker{--plane-size:14px;width:var(--plane-size);height:var(--plane-size);display:flex;align-items:center;justify-content:center;filter:drop-shadow(0 1px 2px #000b);transform-origin:50% 50%}
 .aircraft-marker svg{width:calc(var(--plane-size)*.82);height:calc(var(--plane-size)*.82);overflow:visible}
-.aircraft-marker.selected{filter:drop-shadow(0 0 4px #fff)}
+.aircraft-marker.selected{filter:drop-shadow(0 0 4px #fff);z-index:3}
 .aircraft-marker svg path{fill:#ffd43b;stroke:#6b5500;stroke-width:.8}
 footer{height:28px;background:#070a0f;border-top:1px solid #202936;color:#687587;font-size:10px;padding:6px 10px;display:flex;justify-content:space-between;gap:10px;white-space:nowrap;overflow:hidden}
 .overlay{position:fixed;inset:0;background:#0009;z-index:5000;display:flex;align-items:flex-start;justify-content:center;padding:70px 18px 20px;overflow:auto}
@@ -306,7 +306,7 @@ body[data-device="phone"] .check-row{height:36px;font-size:10px}
 
 
 /* Pro tracker layer + detail surfaces */
-.aircraft-marker{pointer-events:none;line-height:0;will-change:transform}
+.aircraft-marker{pointer-events:none;line-height:0;will-change:transform;contain:layout style paint}
 .aircraft-marker svg{display:block}
 .aircraft-marker.type-widebody svg{width:calc(var(--plane-size)*.98);height:calc(var(--plane-size)*.98)}
 .aircraft-marker.type-narrowbody svg{width:calc(var(--plane-size)*.96);height:calc(var(--plane-size)*.96)}
@@ -364,6 +364,7 @@ body[data-device="phone"] .check-row{height:36px;font-size:10px}
 .globe-head>div{display:flex;gap:8px;align-items:baseline}
 .globe-container{min-height:0;position:relative}
 .globe-container canvas{display:block;width:100%;height:100%}
+.map-mode-note{margin-top:7px;line-height:1.45}
 .settings-grid select{height:34px;padding:0 8px}
 .layer-chip{font-size:9px;padding:4px 6px;border-radius:999px;background:#162130;border:1px solid #2c3d50;color:#a7b9c9}
 @media(max-width:800px){
