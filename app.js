@@ -805,10 +805,29 @@ async function loadAircraftPhoto(f,attempt=0){
   try{
     const verifyUrl=API+
       "?detail=photo_verify&aircraft="+encodeURIComponent(aircraft)+
-      "&livery="+encodeURIComponent(livery);
+      "&livery="+encodeURIComponent(livery)+
+      "&callsign="+encodeURIComponent(String(f.callsign||""));
     const verifyResponse=await fetch(verifyUrl,{cache:"no-store"});
     const verification=verifyResponse.ok?await verifyResponse.json():null;
     const verificationVerified=Boolean(verification?.verified);
+
+    // When the Live API callsign is actually a registration, the backend can
+    // return the registration-specific JetPhotos image used by FR24-style
+    // aircraft profiles. Use it before the broad model/livery search.
+    if(verificationVerified&&verification?.source==="JetPhotos"&&verification?.image){
+      const registrationPhoto={
+        src:verification.image,
+        title:String(verification.registration||f.callsign||aircraft),
+        url:verification.url||"https://www.jetphotos.com/",
+        source:"JetPhotos",
+        verification_source:"JetPhotos registration match",
+        verified:true,
+        score:100
+      };
+      aircraftPhotoCache.set(key,registrationPhoto);
+      if(box.dataset.flightId===flightKey)renderAircraftPhoto(box,registrationPhoto);
+      return;
+    }
 
     const norm=s=>String(s||"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
     const aircraftNorm=norm(aircraft);
@@ -947,7 +966,7 @@ async function loadAircraftPhoto(f,attempt=0){
       title:best.title||aircraft,
       url:best.fullurl||("https://commons.wikimedia.org/wiki/"+encodeURIComponent(best.title||"")),
       source:"Wikimedia Commons",
-      verification_source:"Planespotters.net",
+      verification_source:String(verification?.source||"Planespotters.net"),
       verified:true,
       score:chosen.score
     }:null;
