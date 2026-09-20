@@ -32,7 +32,6 @@ map.getPane("airportPane").style.zIndex="650";
 const $=id=>document.getElementById(id);
 const markers=new Map();
 const aircraftPhotoCache=new Map();
-const aircraftPhotoLiveryMemory=new Map();
 const airportMarkers=new Map();
 const airportFlightCache=new Map();
 const atcMarkers=new Map();
@@ -725,15 +724,17 @@ async function loadAircraftPhoto(f,attempt=0){
   const aircraft=String(f.aircraft_type||"aircraft").trim();
   const flightLivery=String(f.livery_name||"").trim();
   const validLivery=flightLivery && !/^(livery unavailable|unknown|n\/a|null)$/i.test(flightLivery);
-  const memoryKeys=["flight:"+flightKey,"aircraft:"+aircraft.toLowerCase()];
-  if(validLivery) for(const k of memoryKeys) aircraftPhotoLiveryMemory.set(k,flightLivery);
-  const livery=validLivery
-    ? flightLivery
-    : (memoryKeys.map(k=>aircraftPhotoLiveryMemory.get(k)).find(Boolean)||"");
+  // Never remember a livery by aircraft model alone. Two A330s can be
+  // completely different airlines, so model-level memory caused Air China
+  // flights to inherit Korean Air/KLM/etc. labels during live refreshes.
+  // Only the currently selected flight may provide the livery.
+  const livery=validLivery ? flightLivery : "";
 
   if(!livery){
-    box.innerHTML='<div class="aircraft-photo-empty">Waiting for a verified livery… searching again.</div>';
-    setTimeout(()=>loadAircraftPhoto(f,attempt+1),7000);
+    box.innerHTML='<div class="aircraft-photo-empty">Waiting for this flight’s verified livery… searching again.</div>';
+    setTimeout(()=>{
+      if(box.dataset.flightId===flightKey) loadAircraftPhoto(f,attempt+1);
+    },7000);
     return;
   }
 
