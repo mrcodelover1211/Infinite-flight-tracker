@@ -356,21 +356,27 @@ function filterFlights(){
   const term=activeSearchTerm;
   const aircraft=activeFilters.aircraft.toLowerCase();
   const airport=activeFilters.airport.toUpperCase();
-  const minAlt=activeFilters.minAlt;
-  const maxAlt=activeFilters.maxAlt;
-
+  const minAlt=activeFilters.minAlt,maxAlt=activeFilters.maxAlt;
+  const minSpeed=activeFilters.minSpeed,maxSpeed=activeFilters.maxSpeed;
+  const minVs=activeFilters.minVs,maxVs=activeFilters.maxVs;
+  const livery=activeFilters.livery.toLowerCase(),va=activeFilters.va.toLowerCase();
   return allFlights.filter(f=>{
-    const alt=Number(f.altitude_ft);
-    const ph=phase(f);
-    const airportMatch=!airport||
-      String(f.origin?.identifier||"").toUpperCase()===airport||
+    const alt=Number(f.altitude_ft),speed=Number(f.speed_kt),vs=Number(f.vertical_speed_fpm),ph=phase(f);
+    const airportMatch=!airport ||
+      String(f.origin?.identifier||"").toUpperCase()===airport ||
       String(f.destination?.identifier||"").toUpperCase()===airport;
-
     if(term&&!String(f.search_blob||"").includes(term))return false;
     if(aircraft&&!String(f.aircraft_type||"").toLowerCase().includes(aircraft))return false;
     if(!airportMatch)return false;
     if(Number.isFinite(minAlt)&&(!Number.isFinite(alt)||alt<minAlt))return false;
     if(Number.isFinite(maxAlt)&&(!Number.isFinite(alt)||alt>maxAlt))return false;
+    if(Number.isFinite(minSpeed)&&(!Number.isFinite(speed)||speed<minSpeed))return false;
+    if(Number.isFinite(maxSpeed)&&(!Number.isFinite(speed)||speed>maxSpeed))return false;
+    if(Number.isFinite(minVs)&&(!Number.isFinite(vs)||vs<minVs))return false;
+    if(Number.isFinite(maxVs)&&(!Number.isFinite(vs)||vs>maxVs))return false;
+    if(livery&&!String(f.livery_name||"").toLowerCase().includes(livery))return false;
+    if(va&&!String(f.virtual_organization||"").toLowerCase().includes(va))return false;
+    if(activeFilters.className&&aircraftClass(f)!==activeFilters.className)return false;
     if(activeFilters.phase==="air"&&ph==="ground")return false;
     if(activeFilters.phase==="ground"&&ph!=="ground")return false;
     if(settings.connectedOnly&&f.connected!==true)return false;
@@ -1237,30 +1243,34 @@ function syncDraftFilterUI(){
   $("airportFilter").value=activeFilters.airport;
   $("minAlt").value=activeFilters.minAlt??"";
   $("maxAlt").value=activeFilters.maxAlt??"";
+  $("minSpeed").value=activeFilters.minSpeed??"";
+  $("maxSpeed").value=activeFilters.maxSpeed??"";
+  $("minVs").value=activeFilters.minVs??"";
+  $("maxVs").value=activeFilters.maxVs??"";
+  $("liveryFilter").value=activeFilters.livery??"";
+  $("vaFilter").value=activeFilters.va??"";
+  $("classFilter").value=activeFilters.className??"";
   draftPhase=activeFilters.phase;
   document.querySelectorAll("#phasePicker button").forEach(b=>b.classList.toggle("active",b.dataset.phase===draftPhase));
 }
 
 function applySettingsFilters(){
   touch();
-  const minAlt=optionalNumber("minAlt");
-  const maxAlt=optionalNumber("maxAlt");
-
-  if(Number.isNaN(minAlt)||Number.isNaN(maxAlt)){
-    error("Height filters must use numbers.");
-    return;
-  }
-  if(Number.isFinite(minAlt)&&Number.isFinite(maxAlt)&&minAlt>maxAlt){
-    error("Min height cannot be higher than max height.");
-    return;
-  }
-
+  const minAlt=optionalNumber("minAlt"),maxAlt=optionalNumber("maxAlt");
+  const minSpeed=optionalNumber("minSpeed"),maxSpeed=optionalNumber("maxSpeed");
+  const minVs=optionalNumber("minVs"),maxVs=optionalNumber("maxVs");
+  if([minAlt,maxAlt,minSpeed,maxSpeed,minVs,maxVs].some(Number.isNaN)){error("Numeric filters must use numbers.");return;}
+  if(Number.isFinite(minAlt)&&Number.isFinite(maxAlt)&&minAlt>maxAlt){error("Min height cannot be higher than max height.");return;}
+  if(Number.isFinite(minSpeed)&&Number.isFinite(maxSpeed)&&minSpeed>maxSpeed){error("Min speed cannot be higher than max speed.");return;}
+  if(Number.isFinite(minVs)&&Number.isFinite(maxVs)&&minVs>maxVs){error("Min vertical speed cannot be higher than max vertical speed.");return;}
   activeFilters={
     phase:draftPhase,
     aircraft:$("aircraftFilter").value.trim(),
     airport:$("airportFilter").value.trim().toUpperCase(),
-    minAlt,
-    maxAlt
+    minAlt,maxAlt,minSpeed,maxSpeed,minVs,maxVs,
+    livery:$("liveryFilter").value.trim(),
+    va:$("vaFilter").value.trim(),
+    className:$("classFilter").value
   };
   settings.connectedOnly=$("connectedOnly").checked;
   settings.callsignOnly=$("callsignOnly").checked;
@@ -1270,14 +1280,12 @@ function applySettingsFilters(){
 
 function resetFilters(){
   touch();
-  activeFilters={phase:"all",aircraft:"",airport:"",minAlt:null,maxAlt:null};
+  activeFilters={phase:"all",aircraft:"",airport:"",minAlt:null,maxAlt:null,minSpeed:null,maxSpeed:null,minVs:null,maxVs:null,livery:"",va:"",className:""};
   settings.connectedOnly=false;
   settings.callsignOnly=false;
   draftPhase="all";
-  $("aircraftFilter").value="";
-  $("airportFilter").value="";
-  $("minAlt").value="";
-  $("maxAlt").value="";
+  ["aircraftFilter","airportFilter","minAlt","maxAlt","minSpeed","maxSpeed","minVs","maxVs","liveryFilter","vaFilter"].forEach(id=>$(id).value="");
+  $("classFilter").value="";
   $("connectedOnly").checked=false;
   $("callsignOnly").checked=false;
   document.querySelectorAll("#phasePicker button").forEach(b=>b.classList.toggle("active",b.dataset.phase==="all"));
