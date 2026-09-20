@@ -795,7 +795,13 @@ function renderTicket(ticket){
   overlay.setAttribute("aria-hidden","false");
   const qrData=new URL(location.href);
   qrData.search="";
-  qrData.hash="ticket="+encodeURIComponent(ticket.code);
+  qrData.hash="ticket="+encodeURIComponent(ticket.code)+
+    "&name="+encodeURIComponent(ticket.name)+
+    "&flight="+encodeURIComponent(ticket.callsign)+
+    "&route="+encodeURIComponent(ticket.origin+" → "+ticket.destination)+
+    "&seat="+encodeURIComponent(ticket.seat)+
+    "&gate="+encodeURIComponent(ticket.gate)+
+    "&time="+encodeURIComponent(ticket.time);
   const qr="https://api.qrserver.com/v1/create-qr-code/?size=180x180&data="+encodeURIComponent(qrData.toString());
   $("ticketContent").innerHTML=
     '<div class="ticket">'+
@@ -991,7 +997,7 @@ function setTrails(enabled){
     for(const l of trails.values())map.removeLayer(l);
   }else{
     for(const f of visibleFlights.filter(validPos)){
-      if(String(f.flight_id)===String(selectedFlight?.flight_id))updateTrail(String(f.flight_id),f);
+      if(String(f.flight_id)===String(selectedFlight?.flight_id))updateTrail(String(f.flight_id),f,true);
     }
   }
 }
@@ -1122,14 +1128,36 @@ $("statsOverlay").onclick=e=>{if(e.target===$("statsOverlay"))closeStats()};
 
 $("bookingClose").onclick=closeBooking;
 $("ticketClose").onclick=closeTicket;
+$("bookingOverlay").addEventListener("keydown",e=>{if(e.key==="Escape")closeBooking()});
+$("ticketOverlay").addEventListener("keydown",e=>{if(e.key==="Escape")closeTicket()});
 $("bookingOverlay").addEventListener("click",e=>{if(e.target===$("bookingOverlay"))closeBooking()});
 $("ticketOverlay").addEventListener("click",e=>{if(e.target===$("ticketOverlay"))closeTicket()});
 
-const ticketCode=new URLSearchParams(location.hash.replace(/^#/,"")).get("ticket");
+const ticketParams=new URLSearchParams(location.hash.replace(/^#/,""));
+const ticketCode=ticketParams.get("ticket");
 if(ticketCode){
   try{
     const saved=JSON.parse(localStorage.getItem("ift_ticket")||"null");
-    if(saved&&saved.code===ticketCode)renderTicket(saved);
+    if(saved&&saved.code===ticketCode){
+      renderTicket(saved);
+    }else{
+      const name=ticketParams.get("name");
+      if(name){
+        renderTicket({
+          code:ticketCode,
+          name,
+          callsign:ticketParams.get("flight")||"Flight",
+          aircraft:"Aircraft",
+          origin:(ticketParams.get("route")||"---- → ----").split(" → ")[0]||"----",
+          destination:(ticketParams.get("route")||"---- → ----").split(" → ")[1]||"----",
+          seat:ticketParams.get("seat")||"—",
+          gate:ticketParams.get("gate")||"—",
+          time:ticketParams.get("time")||"—",
+          date:new Date().toLocaleDateString(),
+          flightId:""
+        });
+      }
+    }
   }catch{}
 }
 
