@@ -334,7 +334,7 @@ function renderFlights(){
     let marker=markers.get(id);
     if(!marker)marker=createPlaneMarker(f);
     updatePlane(marker,f,selected);
-    if(settings.trails)updateTrail(id,f,selected);
+    if(settings.trails&&selected)updateTrail(id,f,true);
   }
 
   for(const [id,m] of markers){
