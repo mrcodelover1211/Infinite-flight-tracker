@@ -321,8 +321,8 @@ function renderTrafficList(){
 function renderFlights(){
   const validCount=visibleFlights.filter(validPos).length;
   const filterState=activeSearchTerm||activeFilters.aircraft||activeFilters.airport||activeFilters.phase!=="all"||activeFilters.minAlt!==null||activeFilters.maxAlt!==null||settings.connectedOnly||settings.callsignOnly;
-  const renderLimit=maxRenderableFlights();
-  $("summary").textContent=allFlights.length.toLocaleString()+" live · "+visibleFlights.length.toLocaleString()+" shown · "+Math.min(validCount,renderLimit).toLocaleString()+" on map"+(validCount>renderLimit?" · performance mode":"")+(filterState?" · filtered":"");
+  const mapRenderLimit=maxRenderableFlights();
+  $("summary").textContent=allFlights.length.toLocaleString()+" live · "+visibleFlights.length.toLocaleString()+" shown · "+Math.min(validCount,mapRenderLimit).toLocaleString()+" on map"+(validCount>mapRenderLimit?" · performance mode":"")+(filterState?" · filtered":"");
   $("serverCounts").textContent=allFlights.length.toLocaleString();
   const perf=selectedServer==="expert"&&performanceProfile()!=="high";
   $("searchHint").textContent=perf
