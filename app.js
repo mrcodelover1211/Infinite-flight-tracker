@@ -264,8 +264,11 @@ function planePixels(){
 }
 
 function planePixelsForClass(kind){
-  const base=settings.planeSize==="small"?12:settings.planeSize==="large"?18:14;
-  const mul={widebody:1.28,narrowbody:1.16,regional:1.04,turboprop:1,helicopter:.96,military:1.05,general:.9,other:1}[kind]||1;
+  // FR24-style compact icons: aircraft category changes the silhouette and only
+  // slightly changes the footprint. Avoid the old double-scaling that made
+  // widebodies look enormous compared with smaller aircraft.
+  const base=settings.planeSize==="small"?12:settings.planeSize==="large"?16:14;
+  const mul={widebody:1.08,narrowbody:1.03,regional:1,turboprop:.96,helicopter:.98,military:1.02,general:.92,other:1}[kind]||1;
   return Math.round(base*mul);
 }
 function planeIcon(f){
