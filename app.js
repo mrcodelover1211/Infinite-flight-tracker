@@ -25,6 +25,8 @@ L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
 }).addTo(map);
 
 L.control.scale({imperial:true,metric:true}).addTo(map);
+map.createPane("airportPane");
+map.getPane("airportPane").style.zIndex="650";
 
 const $=id=>document.getElementById(id);
 const markers=new Map();
@@ -596,9 +598,10 @@ function drawRoute(f){
 function airportTowerIcon(){
   return L.divIcon({
     className:"airport-tower-wrap",
-    html:'<div class="airport-tower" aria-label="Airport"><div class="airport-tower-hit"><svg viewBox="0 0 20 20"><path d="M3 18h14M5 18V7h10v11M4 7l6-5 6 5M7 10h2v2H7zm4 0h2v2h-2zm-4 4h2v2H7zm4 0h2v2h-2z"/></svg></div></div>',
-    iconSize:[30,30],
-    iconAnchor:[15,15]
+    html:'<div class="airport-tower-hit" aria-label="Airport" style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;background:transparent;border:0;box-shadow:none;"><div style="width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#124370;border:1.5px solid #fff;box-shadow:0 2px 5px #000b;"><svg viewBox="0 0 20 20" style="width:15px;height:15px;fill:none;stroke:#fff;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;"><path d="M3 18h14M5 18V7h10v11M4 7l6-5 6 5M7 10h2v2H7zm4 0h2v2h-2zm-4 4h2v2H7zm4 0h2v2h-2z"/></svg></div></div>',
+    iconSize:[40,40],
+    iconAnchor:[20,20],
+    pane:"airportPane"
   });
 }
 
@@ -618,7 +621,8 @@ function renderWorld(){
     const marker=L.marker([lat,lon],{
       icon:airportTowerIcon(),
       keyboard:false,
-      zIndexOffset:2,
+      zIndexOffset:1000,
+      pane:"airportPane",
       interactive:true
     });
 
