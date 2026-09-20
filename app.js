@@ -290,7 +290,15 @@ function planePixelsForClass(kind){
 }
 function planeIcon(f){
   const kind=aircraftClass(f||{}),px=planePixelsForClass(kind);
-  return L.divIcon({className:"",html:'<div class="aircraft-marker type-'+kind+'" style="--plane-size:'+px+'px">'+aircraftIconSvg(kind,f?.aircraft_type)+'</div>',iconSize:[px,px],iconAnchor:[px/2,px/2]});
+  // Keep the silhouette compact, but give touch devices a generous invisible
+  // hit target so tiny aircraft are not a precision-tapping minigame.
+  const hit=36;
+  return L.divIcon({
+    className:"",
+    html:'<div class="aircraft-hitbox" aria-hidden="true"><div class="aircraft-marker type-'+kind+'" style="--plane-size:'+px+'px">'+aircraftIconSvg(kind,f?.aircraft_type)+'</div></div>',
+    iconSize:[hit,hit],
+    iconAnchor:[hit/2,hit/2]
+  });
 }
 function refreshPlaneIcons(){
   for(const [id,marker] of markers){const f=flightById.get(id);if(f)marker.setIcon(planeIcon(f));}
@@ -307,7 +315,22 @@ function createPlaneMarker(f){
   marker._targetHeading=marker._heading;
   marker._reportedAt=reportEpoch(f.last_report);
   marker.bindTooltip(labelForFlight(f),{direction:"top",sticky:true,opacity:.92});
-  marker.on("click",()=>{touch();const x=flightById.get(id);if(x)loadFlightDetail(x)});
+  marker.on("click",e=>{
+    touch();
+    // Several aircraft can overlap at tracker zoom levels. Resolve the click
+    // to the marker whose center is actually closest to the user's finger.
+    const clickPoint=map.latLngToContainerPoint(e.latlng);
+    let bestId=id,bestDistance=Infinity;
+    for(const [otherId,otherMarker] of markers){
+      const otherLatLng=otherMarker.getLatLng();
+      const point=map.latLngToContainerPoint(otherLatLng);
+      const dx=point.x-clickPoint.x,dy=point.y-clickPoint.y;
+      const distance=Math.hypot(dx,dy);
+      if(distance<bestDistance){bestDistance=distance;bestId=otherId;}
+    }
+    const x=flightById.get(bestId)||flightById.get(id);
+    if(x)loadFlightDetail(x);
+  });
   marker.on("dblclick",e=>{touch();L.DomEvent.stopPropagation(e);const x=flightById.get(id);if(x)followFlight(x)});
   marker.addTo(map); markers.set(id,marker); return marker;
 }
