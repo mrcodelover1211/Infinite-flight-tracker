@@ -21,13 +21,15 @@
       <button class="server-btn" data-server="training">Training</button>
       <button class="server-btn active" data-server="expert">Expert</button>
     </div>
-    <button id="listBtn" class="top-btn">List</button>
-    <button id="airportsToggle" class="top-btn">Airports</button>
-    <button id="airportBtn" class="top-btn">Airport</button>
-    <button id="fitBtn" class="top-btn">Fit</button>
-    <button id="randomBtn" class="top-btn">Random</button>
-    <button id="statsBtn" class="top-btn">Stats</button>
-    <button id="settingsBtn" class="top-btn">Settings</button>
+    <button id="listBtn" class="top-btn" title="Show or hide the live flight list">✈ Flights</button>
+    <button id="searchTopBtn" class="top-btn" title="Search live flights">⌕ Search</button>
+    <button id="airportsToggle" class="top-btn" title="Show or hide airport markers">● Airport map</button>
+    <button id="airportBtn" class="top-btn" title="Find an airport by ICAO code">⌖ Find airport</button>
+    <button id="fitBtn" class="top-btn" title="Fit all visible aircraft on the map">Fit aircraft</button>
+    <button id="randomBtn" class="top-btn" title="Jump to a random live aircraft">Random flight</button>
+    <button id="worldTopBtn" class="top-btn" title="Return to world view">World</button>
+    <button id="statsBtn" class="top-btn" title="Open live traffic statistics">Stats</button>
+    <button id="settingsBtn" class="top-btn" title="Map, traffic and display settings">⚙ Settings</button>
   </div>
 </header>
 
@@ -116,6 +118,28 @@
         <button class="setting-toggle active" data-setting="trails">✓ Flight trails</button>
         <button class="setting-toggle active" data-setting="labels">✓ Plane labels</button>
         <button class="setting-toggle active" data-setting="atc">✓ ATC points</button>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-title">Quick actions</div>
+      <div class="settings-grid three">
+        <button id="settingsSearchBtn">⌕ Search flights</button>
+        <button id="settingsAirportBtn">⌖ Find airport</button>
+        <button id="settingsRefreshBtn">↻ Refresh now</button>
+        <button id="settingsWorldBtn">◎ World view</button>
+        <button id="settingsStatsBtn">▣ Live stats</button>
+        <button id="settingsAirportMapBtn">● Airport map</button>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-title">Map display</div>
+      <div class="settings-grid">
+        <button id="settingsLabelsBtn">Plane labels</button>
+        <button id="settingsAtcBtn">ATC points</button>
+        <button id="settingsTrailsBtn">Flight trails</button>
+        <button id="settingsAirportsBtn">Airport markers</button>
       </div>
     </div>
 
