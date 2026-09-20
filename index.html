@@ -22,6 +22,7 @@
       <button class="server-btn active" data-server="expert">Expert</button>
     </div>
     <button id="listBtn" class="top-btn" title="Show or hide the live flight list">✈ Flights</button>
+    <button id="recentBtn" class="top-btn" title="Open the last five flights you clicked">↶ Recent</button>
     <button id="searchTopBtn" class="top-btn" title="Search live flights">⌕ Search</button>
     <button id="airportsToggle" class="top-btn" title="Show or hide airport markers">● Airport map</button>
     <button id="airportBtn" class="top-btn" title="Find an airport by ICAO code">⌖ Find airport</button>
@@ -150,6 +151,7 @@
         <button id="settingsFleetBtn">▤ Fleet board</button>
         <button id="settingsReplayBtn">◀ Replay</button>
         <button id="settingsGlobeBtn">◎ 3D Globe</button>
+        <button id="settingsRecentBtn">↶ Recent flights</button>
       </div>
     </div>
 
@@ -294,7 +296,7 @@
   }
   loadScript("https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js")
     .catch(function(){ return loadScript("https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"); })
-    .then(function(){ return loadScript("app.js?v=livefix33"); })
+    .then(function(){ return loadScript("app.js?v=livefix34"); })
     .catch(function(){
       var el=document.getElementById("status");
       if(el){el.textContent="● Map library unavailable";el.className="status error";}
