@@ -606,8 +606,8 @@ function renderWorld(){
   if(!airportsVisible||!worldData)return;
   clearWorld();
 
-  const zoom=map.getZoom();
-  const bounds=map.getBounds().pad(0.18);
+  // Keep the visual tower compact, but give it a generous invisible touch target.
+  const bounds=map.getBounds().pad(0.35);
   const airports=(worldData.airports||[]).filter(a=>{
     const lat=Number(a.latitude),lon=normLon(a.longitude);
     return Number.isFinite(lat)&&Number.isFinite(lon)&&bounds.contains([lat,lon]);
@@ -618,7 +618,8 @@ function renderWorld(){
     const marker=L.marker([lat,lon],{
       icon:airportTowerIcon(),
       keyboard:false,
-      zIndexOffset:2
+      zIndexOffset:2,
+      interactive:true
     });
 
     const traffic=(Number(a.inbound_count)||0)+(Number(a.outbound_count)||0);
@@ -635,7 +636,7 @@ function renderWorld(){
     airportMarkers.set(a.icao,marker);
   }
 
-  if(settings.atc&&zoom>=4){
+  if(settings.atc&&map.getZoom()>=4){
     for(const a of worldData.atc||[]){
       const lat=Number(a.latitude),lon=normLon(a.longitude);
       if(!Number.isFinite(lat)||!Number.isFinite(lon))continue;
@@ -647,7 +648,6 @@ function renderWorld(){
 
   $("airportCount").textContent=airports.length+" airports · "+atcMarkers.size+" ATC";
 }
-
 
 async function loadWorld(){
   const r=await fetch(API+"?server="+encodeURIComponent(selectedServer)+"&detail=world",{cache:"no-store"});
