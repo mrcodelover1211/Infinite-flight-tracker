@@ -7,3 +7,12 @@
 
 .server-switch{display:flex;gap:3px;background:#0a0f16;border:1px solid #293646;border-radius:8px;padding:3px}.server-btn{height:30px!important;padding:0 9px!important;border:0!important;background:transparent!important}.server-btn.active{background:#29405a!important}.server-status{font-size:11px;color:#8190a1;padding:8px 0;border-bottom:1px solid #202936;margin-bottom:8px}.server-status span:first-child{color:#dce7f1;font-weight:700}.controls{flex-wrap:wrap}.airport-panel{max-height:50vh;overflow:auto}
 @media(max-width:900px){.server-switch{order:-1}.server-btn{flex:1}.controls{gap:5px}.controls button{font-size:12px;padding:0 8px}.controls input{order:10;flex-basis:100%}}
+
+.filter-input{width:130px!important;max-width:16vw}.controls button.active{background:#29405a!important;border-color:#3b5874!important}
+.feature-strip{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 10px}
+.feature-strip span{font-size:10px;padding:5px 7px;border:1px solid #253140;border-radius:999px;background:#101721;color:#9fb0c1}
+.chips{display:flex;gap:6px;flex-wrap:wrap;margin:8px 0 12px}.chip{font-size:10px;padding:4px 7px;border-radius:999px;background:#1b2938;color:#b9d2e8;border:1px solid #2a3a4c}
+.photo-secondary{margin-top:10px}.photo-credit{line-height:1.35}
+.airport-marker{font-size:11px;font-weight:800;color:#dce7f1;text-shadow:0 1px 3px #000}
+@media(max-width:1100px){.filter-input{width:110px!important;max-width:20vw}}
+@media(max-width:900px){.filter-input{flex:1;width:90px!important;max-width:none}.feature-strip{font-size:10px}.controls input{order:10}.filter-input{order:11}}
