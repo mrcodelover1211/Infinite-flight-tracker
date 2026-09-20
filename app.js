@@ -1733,6 +1733,7 @@ async function load(){
     if(d.simulated===true)throw new Error("Backend returned simulated data.");
 
     allFlights=(Array.isArray(d.flights)?d.flights:[]).map(f=>({...f,search_blob:searchBlob(f)}));
+    shredClientCaches();
     if(d.session?.name){
       syncServerUI(String(d.session.name).toLowerCase());
     }else{
