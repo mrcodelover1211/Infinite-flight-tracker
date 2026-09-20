@@ -303,3 +303,77 @@ body[data-device="phone"] .check-row{height:36px;font-size:10px}
 @media(max-width:520px){
   .top-btn{font-size:10px;padding:0 8px}
 }
+
+
+/* Pro tracker layer + detail surfaces */
+.aircraft-marker{pointer-events:none;line-height:0;will-change:transform}
+.aircraft-marker svg{display:block}
+.aircraft-marker.type-widebody svg{width:calc(var(--plane-size)*1.32);height:calc(var(--plane-size)*1.32)}
+.aircraft-marker.type-narrowbody svg{width:calc(var(--plane-size)*1.14);height:calc(var(--plane-size)*1.14)}
+.aircraft-marker.type-regional svg{width:calc(var(--plane-size)*1.02);height:calc(var(--plane-size)*1.02)}
+.aircraft-marker.type-turboprop svg{width:calc(var(--plane-size)*1.05);height:calc(var(--plane-size)*1.05)}
+.aircraft-marker.type-helicopter svg{width:calc(var(--plane-size)*1.08);height:calc(var(--plane-size)*1.08)}
+.aircraft-marker.type-military svg{width:calc(var(--plane-size)*1.12);height:calc(var(--plane-size)*1.12)}
+.aircraft-marker.type-general svg{width:calc(var(--plane-size)*.98);height:calc(var(--plane-size)*.98)}
+.aircraft-marker svg path,.aircraft-marker svg circle,.aircraft-marker svg rect{vector-effect:non-scaling-stroke}
+
+.detail-header{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
+.flight-status-badge{font-size:9px;padding:4px 6px;border-radius:999px;border:1px solid #334455;background:#17212d;color:#bfd0df;white-space:nowrap}
+.flight-status-badge.live{background:#153322;border-color:#2e6b47;color:#a6ebbf}
+.flight-status-badge.stale{background:#352d18;border-color:#735d2d;color:#efd890}
+.flight-status-badge.lost{background:#371b1b;border-color:#733333;color:#ffb0b0}
+.progress-wrap{margin:10px 0 9px}
+.progress-track{height:8px;background:#111923;border:1px solid #2a3847;border-radius:999px;overflow:hidden}
+.progress-fill{height:100%;width:0;background:#ffd43b;transition:width .25s ease}
+.progress-caption{display:flex;justify-content:space-between;gap:8px;margin-top:4px;font-size:9px;color:#77899a}
+.waypoint-next{padding:9px;border:1px solid #273748;background:#111922;border-radius:8px;margin:9px 0}
+.waypoint-next b{font-size:17px}
+.waypoint-next .mono{font-variant-numeric:tabular-nums}
+.detail-section-title{font-size:10px;text-transform:uppercase;letter-spacing:.08em;color:#768799;font-weight:800;margin:11px 0 6px}
+.nearby-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px;align-items:center;padding:7px 0;border-top:1px solid #1d2732}
+.nearby-row:first-child{border-top:0}
+.nearby-main{min-width:0}
+.nearby-main strong,.nearby-main span{display:block;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.nearby-main span{font-size:9px;color:#7f8c9c;margin-top:2px}
+.data-quality{font-size:9px;color:#8394a5}
+.data-quality b{color:#cbd8e4}
+.favorite-btn.active{background:#3a2f16!important;border-color:#79602a!important;color:#ffd86a!important}
+.stats-breakdown{margin-top:12px;border-top:1px solid #202936;padding-top:12px}
+.stats-breakdown-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px}
+.breakdown-card{padding:10px;border:1px solid #253140;background:#111823;border-radius:8px}
+.breakdown-card h4{margin:0 0 7px;font-size:10px;color:#98a9b9}
+.breakdown-card .rank-row{display:flex;justify-content:space-between;gap:10px;padding:5px 0;border-top:1px solid #1e2934;font-size:9px}
+.breakdown-card .rank-row:first-of-type{border-top:0}
+.fleet-table{display:grid;gap:6px;margin-top:12px}
+.fleet-row{display:grid;grid-template-columns:minmax(95px,1.1fr) minmax(100px,1.2fr) 70px 70px minmax(85px,1fr) auto;gap:7px;align-items:center;padding:8px;border:1px solid #263544;background:#111823;border-radius:8px;font-size:10px}
+.fleet-row strong{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.fleet-row span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:#91a1b0}
+.fleet-row button{white-space:nowrap}
+.replay-timeline{width:100%}
+.replay-range{width:100%}
+.replay-metric-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin:10px 0}
+.replay-metric{padding:9px;border:1px solid #253140;background:#111823;border-radius:8px}
+.replay-metric span{display:block;font-size:8px;color:#758698;text-transform:uppercase}
+.replay-metric b{display:block;margin-top:3px;font-size:12px}
+.replay-actions{display:flex;gap:7px;flex-wrap:wrap}
+.replay-actions button{flex:1;min-width:90px}
+.replay-empty{padding:15px;border:1px dashed #2a3948;border-radius:8px;color:#7e8e9f;font-size:10px}
+.globe-overlay{padding:18px!important;z-index:5200}
+.globe-shell{width:min(1200px,100%);height:min(86dvh,820px);background:#05080d;border:1px solid #2a3949;border-radius:12px;box-shadow:0 18px 70px #000c;display:grid;grid-template-rows:auto minmax(0,1fr);overflow:hidden}
+.globe-head{display:flex;align-items:center;justify-content:space-between;padding:10px 12px;border-bottom:1px solid #202936;background:#0b1118}
+.globe-head>div{display:flex;gap:8px;align-items:baseline}
+.globe-container{min-height:0;position:relative}
+.globe-container canvas{display:block;width:100%;height:100%}
+.settings-grid select{height:34px;padding:0 8px}
+.layer-chip{font-size:9px;padding:4px 6px;border-radius:999px;background:#162130;border:1px solid #2c3d50;color:#a7b9c9}
+@media(max-width:800px){
+  .fleet-row{grid-template-columns:minmax(80px,1fr) minmax(95px,1fr) 58px 58px auto}
+  .fleet-row .fleet-phase{display:none}
+  .replay-metric-grid{grid-template-columns:1fr 1fr}
+}
+@media(max-width:520px){
+  .stats-breakdown-grid{grid-template-columns:1fr}
+  .fleet-row{grid-template-columns:minmax(80px,1fr) minmax(85px,1fr) 58px auto}
+  .fleet-row .fleet-speed{display:none}
+  .fleet-row button{padding:5px 6px;font-size:10px}
+}
