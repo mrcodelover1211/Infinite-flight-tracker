@@ -71,8 +71,8 @@ async function showWikiPhoto(f){
 function renderFlightDetails(f){
   lastSelectedId=String(f.flight_id||"");
   $("details").className="";
-  const aircraftName=f.aircraft?.aircraft_name||"Aircraft type unavailable";
-  const liveryName=f.aircraft?.livery_name||"Livery unavailable";
+  const aircraftName=f.aircraft_type||f.aircraft?.aircraft_name||"Aircraft type unavailable";
+  const liveryName=f.livery_name||f.aircraft?.livery_name||"Livery unavailable";
   const dest=f.destination?.identifier||f.destination?.name||"Unknown";
   const routeText=Array.isArray(f.route)&&f.route.length?f.route.length+" route points":"Route history unavailable";
   $("details").innerHTML=
