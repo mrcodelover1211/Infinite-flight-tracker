@@ -119,6 +119,19 @@ $("fitBtn").addEventListener("click",fitAircraft);$("refreshBtn").addEventListen
 $("search").addEventListener("keydown",e=>{if(e.key==="Enter")applySearch()});
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")load()});
 load();setInterval(()=>{if(document.visibilityState==="visible")load()},POLL_MS);
+function drawSelectedRoute(f){
+  if(selectedRouteLayer){map.removeLayer(selectedRouteLayer);selectedRouteLayer=null;}
+  const pts=(f.route||[]).map(p=>[Number(p.latitude),Number(p.longitude)]).filter(p=>Number.isFinite(p[0])&&Number.isFinite(p[1]));
+  const planPts=(f.flight_plan?.flightPlanItems||[]).flatMap(x=>{const a=x?.location;return a&&Number.isFinite(Number(a.latitude))&&Number.isFinite(Number(a.longitude))?[[Number(a.latitude),Number(a.longitude)]]:[]});
+  if(pts.length>1){
+    selectedRouteLayer=L.layerGroup([L.polyline(pts,{color:"#aeb6bd",weight:2,opacity:.65})]).addTo(map);
+    map.fitBounds(L.latLngBounds(pts),{padding:[40,40],maxZoom:7});
+  }
+  if(planPts.length>1){
+    if(!selectedRouteLayer)selectedRouteLayer=L.layerGroup().addTo(map);
+    L.polyline(planPts,{color:"#8d969f",weight:2,opacity:.55,dashArray:"5 6"}).addTo(selectedRouteLayer);
+  }
+}
 function showRoute(f){
   const pts=(f.route||[]).map(p=>[Number(p.latitude),Number(p.longitude)]).filter(p=>Number.isFinite(p[0])&&Number.isFinite(p[1]));
   if(pts.length>1){map.fitBounds(L.latLngBounds(pts),{padding:[40,40],maxZoom:7});}
