@@ -1,5 +1,6 @@
 const API = "https://vbifkgzmczbndtawawre.supabase.co/functions/v1/flights";
 const POLL_MS = 15000;
+const CLIENT_FETCH_TIMEOUT_MS = 20000;
 const IDLE_STOP_MS = 15 * 60 * 1000;
 const SERVERS = ["casual","training","expert"];
 
@@ -1507,7 +1508,10 @@ async function load(){
   clearError();
 
   try{
-    const r=await fetch(API+"?server="+encodeURIComponent(selectedServer),{cache:"no-store"});
+    const controller=new AbortController();
+    const timeout=setTimeout(()=>controller.abort(),CLIENT_FETCH_TIMEOUT_MS);
+    const r=await fetch(API+"?server="+encodeURIComponent(selectedServer),{cache:"no-store",signal:controller.signal});
+    clearTimeout(timeout);
     const d=await r.json();
     if(!r.ok)throw new Error(d.message||d.error||("Backend HTTP "+r.status));
     if(d.simulated===true)throw new Error("Backend returned simulated data.");
@@ -1533,8 +1537,13 @@ async function load(){
       if(f)focusFlight(f);
     }
   }catch(e){
-    setStatus("● Backend error","error");
-    error(e.message||"Unknown error");
+    if(e?.name==="AbortError"){
+      setStatus("● Backend timeout","error");
+      error("Live data request timed out after 20 seconds. The backend is reachable but the live upstream feed did not answer in time.");
+    }else{
+      setStatus("● Backend error","error");
+      error(e.message||"Unknown error");
+    }
   }finally{
     loading=false;
   }
