@@ -54,17 +54,11 @@ let animationFrame=0;
 let routeLayers=[];
 let activeSearchTerm="";
 let listVisible=false;
-const replayBuffer=new Map();
-const MAX_REPLAY_POINTS=240;
 let weatherLayer=null;
 let weatherTimer=0;
 let densityLayers=[];
 let dayNightLayer=null;
 let rangeRingLayers=[];
-let replayMarker=null;
-let replayRoute=null;
-let replayTimer=0;
-let replayIndex=0;
 let globeInstance=null;
 let globeScriptPromise=null;
 let mapMode="2d";
@@ -166,7 +160,6 @@ function setServer(server){
   if(!SERVERS.includes(server)||server===selectedServer)return;
   selectedServer=server;
   history.replaceState(null,"",location.pathname+"?server="+server);
-  replayBuffer.clear();
   sessionFavorites.clear();
   selectedFlight=null;
   followingFlightId=null;
@@ -243,14 +236,6 @@ function nearestNeighborFlights(f,limit=8){
     .map(x=>({...x,_distance_nm:haversineNmClient(lat,lon,Number(x.latitude),normLon(x.longitude))}))
     .filter(x=>Number.isFinite(x._distance_nm)&&x._distance_nm<=100)
     .sort((a,b)=>a._distance_nm-b._distance_nm).slice(0,limit);
-}
-function recordReplaySnapshot(f){
-  const id=String(f?.flight_id||""); if(!id||!validPos(f))return;
-  const t=reportEpoch(f.last_report)||Date.now(), history=replayBuffer.get(id)||[];
-  if(history.some(x=>x.t===t))return;
-  history.push({t,lat:Number(f.latitude),lon:normLon(f.longitude),alt:Number(f.altitude_ft),speed:Number(f.speed_kt),vs:Number(f.vertical_speed_fpm),heading:Number(f.heading_deg),track:Number(f.track_deg)});
-  while(history.length>MAX_REPLAY_POINTS)history.shift();
-  replayBuffer.set(id,history);
 }
 function addStatusBadge(f){
   const s=flightStatus(f), age=Number.isFinite(dataAgeSeconds(f))?Math.round(dataAgeSeconds(f))+"s ago":"age unknown";
@@ -393,7 +378,6 @@ function updatePlane(marker,f,selected){
   const callout=markerEl?.querySelector(".selected-callsign");
   if(callout)callout.textContent=String(f.callsign||f.username||"");
   marker.setZIndexOffset(selected?10000:10);
-  recordReplaySnapshot(f);
 }
 function animatePlanes(now){
   for(const m of markers.values()){
@@ -1373,79 +1357,6 @@ function updateStatsBreakdown(){
 }
 
 
-function sparkline(values,label){
-  const nums=values.filter(Number.isFinite);
-  if(nums.length<2)return '<div class="replay-chart"><div class="label">'+esc(label)+'</div><div class="muted">Not enough reports.</div></div>';
-  const min=Math.min(...nums),max=Math.max(...nums),span=max-min||1;
-  const w=320,h=70,pad=5;
-  const points=nums.map((v,i)=>{
-    const x=pad+(w-pad*2)*(i/(nums.length-1));
-    const y=h-pad-(h-pad*2)*((v-min)/span);
-    return x.toFixed(1)+','+y.toFixed(1);
-  }).join(' ');
-  return '<div class="replay-chart"><div class="label">'+esc(label)+'</div><svg viewBox="0 0 '+w+' '+h+'" role="img" aria-label="'+esc(label)+'"><polyline fill="none" stroke="currentColor" stroke-width="2" points="'+points+'"></polyline></svg><div class="progress-caption"><span>Min '+num(min,0)+'</span><span>Max '+num(max,0)+'</span></div></div>';
-}
-
-function openReplay(f){
-  touch();
-  const id=String(f?.flight_id||"");
-  const points=replayBuffer.get(id)||[];
-  $("replayOverlay").classList.remove("hidden");
-  $("replayOverlay").setAttribute("aria-hidden","false");
-  replayIndex=Math.max(0,points.length-1);
-  renderReplay(f);
-}
-function closeReplay(){
-  $("replayOverlay").classList.add("hidden");
-  $("replayOverlay").setAttribute("aria-hidden","true");
-  if(replayTimer)clearInterval(replayTimer);
-  replayTimer=0;
-  if(replayMarker){map.removeLayer(replayMarker);replayMarker=null;}
-  if(replayRoute){map.removeLayer(replayRoute);replayRoute=null;}
-}
-function renderReplay(f){
-  const points=replayBuffer.get(String(f?.flight_id||""))||[];
-  if(!points.length){
-    $("replayContent").innerHTML='<div class="replay-empty">Replay is building from live refreshes. Keep the flight live while the tracker records snapshots.</div>';
-    return;
-  }
-  replayIndex=clamp(replayIndex,0,points.length-1);
-  const p=points[replayIndex];
-  const route=points.slice(0,replayIndex+1).map(x=>[x.lat,x.lon]);
-  if(replayMarker)replayMarker.setLatLng([p.lat,p.lon]);
-  else replayMarker=L.circleMarker([p.lat,p.lon],{radius:6,color:"#ffd43b",fillColor:"#ffd43b",fillOpacity:.95,weight:2,interactive:false}).addTo(map);
-  if(replayRoute)replayRoute.setLatLngs(route);
-  else replayRoute=L.polyline(route,{weight:2,opacity:.6,color:"#ffd43b",dashArray:"4 5",interactive:false}).addTo(map);
-  const first=points[0],last=points[points.length-1];
-  $("replayContent").innerHTML='<div class="muted">'+esc(f.callsign||labelForFlight(f))+' · '+esc(f.aircraft_type||"Aircraft")+'</div>'+
-    '<input class="replay-range" id="replayRange" type="range" min="0" max="'+(points.length-1)+'" value="'+replayIndex+'">'+
-    '<div class="replay-metric-grid">'+
-      '<div class="replay-metric"><span>Report</span><b>'+new Date(p.t).toLocaleTimeString()+'</b></div>'+
-      '<div class="replay-metric"><span>Altitude</span><b>'+num(p.alt)+' ft</b></div>'+
-      '<div class="replay-metric"><span>Speed</span><b>'+num(p.speed)+' kt</b></div>'+
-      '<div class="replay-metric"><span>Vertical speed</span><b>'+num(p.vs)+' fpm</b></div>'+
-    '</div>'+
-    '<div class="replay-chart-grid">'+
-      sparkline(points.map(x=>x.alt),"Altitude (ft)")+
-      sparkline(points.map(x=>x.speed),"Speed (kt)")+
-      sparkline(points.map(x=>x.vs),"Vertical speed (fpm)")+
-    '</div>'+
-    '<div class="replay-actions"><button class="small-btn" id="replayBack">‹ Step</button><button class="small-btn" id="replayPlay">'+(replayTimer?"Pause":"Play")+'</button><button class="small-btn" id="replayForward">Step ›</button><button class="small-btn" id="replayFit">Fit track</button></div>'+
-    '<div class="progress-caption"><span>'+new Date(first.t).toLocaleTimeString()+'</span><span>'+points.length+' reports · in memory only</span><span>'+new Date(last.t).toLocaleTimeString()+'</span></div>';
-  $("replayRange").oninput=e=>{replayIndex=Number(e.target.value);renderReplay(f);};
-  $("replayBack").onclick=()=>{replayIndex=Math.max(0,replayIndex-1);renderReplay(f);};
-  $("replayForward").onclick=()=>{replayIndex=Math.min(points.length-1,replayIndex+1);renderReplay(f);};
-  $("replayPlay").onclick=()=>{
-    if(replayTimer){clearInterval(replayTimer);replayTimer=0;renderReplay(f);return;}
-    replayTimer=setInterval(()=>{
-      replayIndex++;
-      if(replayIndex>=points.length){clearInterval(replayTimer);replayTimer=0;replayIndex=points.length-1;}
-      renderReplay(f);
-    },500);
-  };
-  $("replayFit").onclick=()=>{map.fitBounds(L.latLngBounds(points.map(x=>[x.lat,x.lon])),{padding:[35,35],maxZoom:8,animate:false});};
-}
-
 function loadScript(src){
   return new Promise((resolve,reject)=>{
     const exists=[...document.scripts].find(s=>s.src===src);
@@ -1826,7 +1737,6 @@ async function load(){
     if(d.simulated===true)throw new Error("Backend returned simulated data.");
 
     allFlights=(Array.isArray(d.flights)?d.flights:[]).map(f=>({...f,search_blob:searchBlob(f)}));
-    allFlights.forEach(recordReplaySnapshot);
     if(d.session?.name){
       syncServerUI(String(d.session.name).toLowerCase());
     }else{
@@ -2185,19 +2095,16 @@ $("clearSelectionBtn").onclick=()=>{touch();selectedFlight=null;followingFlightI
 $("nearbyFlightBtn").onclick=()=>{touch();if(selectedFlight&&validPos(selectedFlight))map.setView([Number(selectedFlight.latitude),normLon(selectedFlight.longitude)],Math.max(map.getZoom(),7),{animate:false});};
 $("rangeRingsBtn").onclick=()=>toggleRangeRings(selectedFlight);
 $("favoriteFlightBtn").onclick=()=>{if(selectedFlight)toggleFavorite(selectedFlight);else error("Select a flight first.");};
-$("replaySelectedBtn").onclick=()=>{closeSettings();selectedFlight?openReplay(selectedFlight):error("Select a flight first.");};
 $("copyFlightBtn").onclick=copySelectedFlight;
 
 $("settingsClose").onclick=closeSettings;
 $("statsClose").onclick=closeStats;
 $("fleetClose").onclick=closeFleet;
-$("replayClose").onclick=closeReplay;
 $("globeClose").onclick=closeGlobe;
 
 $("settingsOverlay").onclick=e=>{if(e.target===$("settingsOverlay"))closeSettings()};
 $("statsOverlay").onclick=e=>{if(e.target===$("statsOverlay"))closeStats()};
 $("fleetOverlay").onclick=e=>{if(e.target===$("fleetOverlay"))closeFleet()};
-$("replayOverlay").onclick=e=>{if(e.target===$("replayOverlay"))closeReplay()};
 $("globeOverlay").onclick=e=>{if(e.target===$("globeOverlay"))closeGlobe()};
 
 $("bookingClose").onclick=closeBooking;
