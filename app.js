@@ -961,6 +961,27 @@ setInterval(()=>{
   load();
 },POLL_MS);
 
+
+function detectDeviceLayout(){
+  const width=window.innerWidth;
+  const coarse=window.matchMedia("(pointer:coarse)").matches;
+  const touch=navigator.maxTouchPoints>0;
+  const device=width<=600?"phone":(width<=1100&& (touch||coarse) ? "tablet" : (width<=1100?"tablet":"desktop"));
+  const orientation=window.innerHeight>window.innerWidth?"portrait":"landscape";
+  document.body.dataset.device=device;
+  document.body.dataset.orientation=orientation;
+  document.documentElement.style.setProperty("--app-width",width+"px");
+  requestAnimationFrame(()=>map.invalidateSize({animate:false}));
+}
+let deviceResizeTimer=0;
+function scheduleDeviceLayout(){
+  clearTimeout(deviceResizeTimer);
+  deviceResizeTimer=setTimeout(detectDeviceLayout,120);
+}
+window.addEventListener("resize",scheduleDeviceLayout,{passive:true});
+window.addEventListener("orientationchange",scheduleDeviceLayout,{passive:true});
+detectDeviceLayout();
+
 syncServerUI();
 syncDraftFilterUI();
 requestAnimationFrame(animatePlanes);
