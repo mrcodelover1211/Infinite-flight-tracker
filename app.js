@@ -159,6 +159,8 @@ function setServer(server){
   if(!SERVERS.includes(server)||server===selectedServer)return;
   selectedServer=server;
   history.replaceState(null,"",location.pathname+"?server="+server);
+  replayBuffer.clear();
+  sessionFavorites.clear();
   selectedFlight=null;
   followingFlightId=null;
   clearMarkers();
@@ -314,7 +316,9 @@ function animatePlanes(now){
     if(el){
       const start=Number.isFinite(m._heading)?m._heading:m._targetHeading;
       const delta=((m._targetHeading-start+540)%360)-180;
-      el.style.transform="rotate("+(start+delta*p)+"deg)";
+      const currentHeading=start+delta*p;
+      m._heading=currentHeading;
+      el.style.transform="rotate("+currentHeading+"deg)";
     }
   }
   animationFrame=requestAnimationFrame(animatePlanes);
@@ -566,7 +570,7 @@ function renderDetails(f){
   $("details").className="";
   $("details").innerHTML='<div class="card">'+
     '<div class="detail-header"><div><div class="aircraft">'+esc(f.callsign||labelForFlight(f)||"Unknown flight")+'</div><div class="muted">'+esc(f.aircraft_type||"Unknown plane")+' · '+esc(f.livery_name||"Livery unavailable")+'</div></div>'+addStatusBadge(f)+'</div>'+
-    '<div id="aircraftPhoto" class="aircraft-photo"><div class="aircraft-photo-loading">Loading aircraft photo…</div></div>'+
+    '<div id="aircraftPhoto" class="aircraft-photo" data-flight-id="'+esc(String(f.flight_id||""))+'"><div class="aircraft-photo-loading">Loading aircraft photo…</div></div>'+
     '<div class="chips"><span class="chip">'+esc(displayServer(selectedServer))+'</span><span class="chip">'+esc(f.virtual_organization||"No VA")+'</span><span class="chip">'+esc(aircraftClass(f))+'</span><span class="chip">'+esc(phase(f))+'</span></div>'+
     '<div class="progress-wrap"><div class="progress-track"><div class="progress-fill" style="width:'+(prog==null?0:prog)+'%"></div></div><div class="progress-caption"><span>'+esc(origin)+'</span><b>'+(prog==null?"—":prog.toFixed(1)+"%")+'</b><span>'+esc(dest)+'</span></div></div>'+
     '<div class="waypoint-next"><div class="label">NEXT WAYPOINT</div><b>'+esc(next?.identifier||next?.name||"Unavailable")+'</b><div class="mono">'+(f.distance_to_next_nm==null?"—":num(f.distance_to_next_nm,1)+" NM")+' · ETA '+(next?.eta_minutes==null?"—":num(next.eta_minutes)+" min")+(f.cross_track_nm==null?"":" · XTK "+num(f.cross_track_nm,1)+" NM")+'</div></div>'+
@@ -614,11 +618,13 @@ function renderDetails(f){
 async function loadAircraftPhoto(f){
   const box=$("aircraftPhoto");
   if(!box)return;
+  const flightKey=String(f.flight_id||"");
+  if(box.dataset.flightId!==flightKey)return;
   const aircraft=String(f.aircraft_type||"aircraft").trim();
   const livery=String(f.livery_name||"").trim();
   const key=(aircraft+"|"+livery).toLowerCase();
   if(aircraftPhotoCache.has(key)){
-    renderAircraftPhoto(box,aircraftPhotoCache.get(key));
+    if(box.dataset.flightId===flightKey)renderAircraftPhoto(box,aircraftPhotoCache.get(key));
     return;
   }
 
@@ -683,7 +689,7 @@ async function loadAircraftPhoto(f){
     }:null;
 
     aircraftPhotoCache.set(key,photo);
-    renderAircraftPhoto(box,photo);
+    if(box.dataset.flightId===flightKey)renderAircraftPhoto(box,photo);
   }catch{
     try{
       const fallbackUrl="https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch="+
@@ -696,7 +702,7 @@ async function loadAircraftPhoto(f){
       const info=best?.imageinfo?.[0];
       const photo=best&&info?{src:info.thumburl||info.url,title:best.title||aircraft,url:info.descriptionurl||info.url}:null;
       aircraftPhotoCache.set(key,photo);
-      renderAircraftPhoto(box,photo);
+      if(box.dataset.flightId===flightKey)renderAircraftPhoto(box,photo);
     }catch{
       aircraftPhotoCache.set(key,null);
       renderAircraftPhoto(box,null);
