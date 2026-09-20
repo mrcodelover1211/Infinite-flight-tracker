@@ -308,13 +308,13 @@ body[data-device="phone"] .check-row{height:36px;font-size:10px}
 /* Pro tracker layer + detail surfaces */
 .aircraft-marker{pointer-events:none;line-height:0;will-change:transform}
 .aircraft-marker svg{display:block}
-.aircraft-marker.type-widebody svg{width:calc(var(--plane-size)*1.32);height:calc(var(--plane-size)*1.32)}
-.aircraft-marker.type-narrowbody svg{width:calc(var(--plane-size)*1.14);height:calc(var(--plane-size)*1.14)}
-.aircraft-marker.type-regional svg{width:calc(var(--plane-size)*1.02);height:calc(var(--plane-size)*1.02)}
-.aircraft-marker.type-turboprop svg{width:calc(var(--plane-size)*1.05);height:calc(var(--plane-size)*1.05)}
-.aircraft-marker.type-helicopter svg{width:calc(var(--plane-size)*1.08);height:calc(var(--plane-size)*1.08)}
-.aircraft-marker.type-military svg{width:calc(var(--plane-size)*1.12);height:calc(var(--plane-size)*1.12)}
-.aircraft-marker.type-general svg{width:calc(var(--plane-size)*.98);height:calc(var(--plane-size)*.98)}
+.aircraft-marker.type-widebody svg{width:calc(var(--plane-size)*.98);height:calc(var(--plane-size)*.98)}
+.aircraft-marker.type-narrowbody svg{width:calc(var(--plane-size)*.96);height:calc(var(--plane-size)*.96)}
+.aircraft-marker.type-regional svg{width:calc(var(--plane-size)*.94);height:calc(var(--plane-size)*.94)}
+.aircraft-marker.type-turboprop svg{width:calc(var(--plane-size)*.94);height:calc(var(--plane-size)*.94)}
+.aircraft-marker.type-helicopter svg{width:calc(var(--plane-size)*.94);height:calc(var(--plane-size)*.94)}
+.aircraft-marker.type-military svg{width:calc(var(--plane-size)*.98);height:calc(var(--plane-size)*.98)}
+.aircraft-marker.type-general svg{width:calc(var(--plane-size)*.92);height:calc(var(--plane-size)*.92)}
 .aircraft-marker svg path,.aircraft-marker svg circle,.aircraft-marker svg rect{vector-effect:non-scaling-stroke}
 
 .detail-header{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
