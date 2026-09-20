@@ -654,14 +654,21 @@ async function loadAircraftPhoto(f){
     const aircraftNorm=norm(aircraft);
     const liveryNorm=norm(livery);
     const aircraftTokens=aircraftNorm.split(/\s+/).filter(t=>t.length>=2);
-    const modelMatch=aircraft.match(/(?:A\d{3}|B\d{3}|(?:737|747|757|767|777|787)(?:-?\d{2,4})?)/i);
-    const modelNorm=norm(modelMatch?.[0]||aircraft);
+    const modelAliases=[...new Set([
+      aircraft,
+      aircraft.replace(/\b(freighter|cargo|passenger|combi|heavy)\b/ig," ").replace(/\s+/g," ").trim(),
+      aircraft.replace(/\b(md)[ -]?(\d+)\b/ig,"MD-$2"),
+      aircraft.replace(/\b(dc)[ -]?(\d+)\b/ig,"DC-$2"),
+      aircraft.replace(/\b(a)[ -]?(\d{3})\b/ig,"A$2"),
+      aircraft.replace(/\b(b)[ -]?(\d{3})\b/ig,"B$2")
+    ].map(x=>String(x||"").trim()).filter(Boolean))];
+    const modelNorm=norm(modelAliases[0]||aircraft);
 
     const queries=[...new Set([
       [livery,aircraft].filter(Boolean).join(" "),
       [aircraft,livery].filter(Boolean).join(" "),
-      aircraft+" aircraft",
-      livery+" aircraft"
+      ...modelAliases.map(x=>x+" aircraft"),
+      ...modelAliases
     ].filter(Boolean))];
 
     const candidates=[];
@@ -687,11 +694,19 @@ async function loadAircraftPhoto(f){
       const text=(title+" "+description).toLowerCase();
       const titleNorm=norm(title);
       let score=0;
-      const modelEvidence=Boolean(modelNorm&&titleNorm.includes(modelNorm));
+      const modelEvidence=modelAliases.some(alias=>{
+        const a=norm(alias);
+        return a && titleNorm.includes(a);
+      }) || Boolean(modelNorm&&titleNorm.includes(modelNorm));
+      const familyEvidence=modelAliases.some(alias=>{
+        const tokens=norm(alias).split(/\s+/).filter(t=>t.length>=2);
+        return tokens.length>=2 && tokens.slice(0,2).every(t=>titleNorm.includes(t));
+      });
       const liveryEvidence=!liveryNorm||titleNorm.includes(liveryNorm)||text.includes(liveryNorm);
 
-      if(modelEvidence)score+=20;
-      else if(aircraftTokens.some(t=>titleNorm.includes(t)))score+=4;
+      if(modelEvidence)score+=24;
+      else if(familyEvidence)score+=18;
+      else if(aircraftTokens.some(t=>titleNorm.includes(t)))score+=5;
       if(liveryNorm&&liveryEvidence)score+=14;
       if(aircraftWords.test(description))score+=6;
       if(badWords.test(description)||badWords.test(title))score-=60;
@@ -699,13 +714,13 @@ async function loadAircraftPhoto(f){
 
       const verified=Boolean(
         verificationVerified &&
-        modelEvidence &&
+        (modelEvidence||familyEvidence) &&
         (!liveryNorm||liveryEvidence) &&
         !badWords.test(description) &&
         !badWords.test(title)
       );
       const modelSafe=Boolean(
-        modelEvidence &&
+        (modelEvidence||familyEvidence) &&
         !badWords.test(description) &&
         !badWords.test(title) &&
         score>=18
