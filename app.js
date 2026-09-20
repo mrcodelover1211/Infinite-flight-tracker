@@ -52,11 +52,28 @@ let animationFrame=0;
 let routeLayers=[];
 let activeSearchTerm="";
 let listVisible=false;
+const replayBuffer=new Map();
+const MAX_REPLAY_POINTS=240;
+let weatherLayer=null;
+let densityLayers=[];
+let dayNightLayer=null;
+let rangeRingLayers=[];
+let replayMarker=null;
+let replayRoute=null;
+let replayTimer=0;
+let replayIndex=0;
+let globeInstance=null;
+let globeScriptPromise=null;
+const sessionFavorites=new Set();
 
 const settings={
   trails:true,
   labels:true,
   atc:true,
+  density:false,
+  daynight:false,
+  rings:false,
+  weather:false,
   planeSize:"normal",
   connectedOnly:false,
   callsignOnly:false
@@ -67,7 +84,14 @@ let activeFilters={
   aircraft:"",
   airport:"",
   minAlt:null,
-  maxAlt:null
+  maxAlt:null,
+  minSpeed:null,
+  maxSpeed:null,
+  minVs:null,
+  maxVs:null,
+  livery:"",
+  va:"",
+  className:""
 };
 
 let draftPhase="all";
@@ -149,6 +173,75 @@ function setServer(server){
   load();
 }
 
+
+function aircraftClass(f){
+  const raw=String(f?.aircraft_type||"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+  if(/\b(a300|a310|a330|a340|a350|a380|b747|b767|b777|b787|md ?11|dc ?10|il ?96|an ?124)\b/.test(raw))return"widebody";
+  if(/\b(a220|a318|a319|a320|a321|b717|b727|b737|b757|md ?8|md ?9|f100|tu ?204)\b/.test(raw))return"narrowbody";
+  if(/\b(crj|erj|e170|e175|e190|e195|fokker 70|fokker 100|do ?328)\b/.test(raw))return"regional";
+  if(/\b(atr|dh[8c]|dash ?8|beech ?1900|king air|c208|caravan|pc ?12|pc ?6)\b/.test(raw))return"turboprop";
+  if(/\b(bell|h125|h130|h135|h145|ec ?35|ec ?45|aw109|aw139|apache|black ?hawk|chinook|helicopter)\b/.test(raw))return"helicopter";
+  if(/\b(f ?16|f ?18|f ?22|f ?35|f ?15|su ?[0-9]+|mig ?[0-9]+|rafale|typhoon|tornado|c ?17|c ?130|kc ?[0-9]+|military)\b/.test(raw))return"military";
+  if(/\b(cessna|cirrus|piper|diamond|tbm|sr ?2[02]|pa ?[0-9]+|gulfstream|citation|learjet|phenom|pc ?24|pilatus|bonanza|mooney|glider)\b/.test(raw))return"general";
+  return"other";
+}
+function aircraftIconSvg(kind){
+  const base='<svg viewBox="0 0 32 32" aria-hidden="true">';
+  if(kind==="widebody")return base+'<path d="M29 14.1 18.8 11V4.2c0-.9-.7-1.6-1.6-1.6h-2.4c-.9 0-1.6.7-1.6 1.6V11L3 14.1c-.9.3-1.5 1.1-1.5 2.1v1.1c0 .7.6 1.3 1.3 1.3h10.4v4.4l-3.2 2.3c-.6.4-.9 1-.9 1.7v.5c0 .5.5.9 1 .7l5.1-1.8 5.1 1.8c.5.2 1-.2 1-.7v-.5c0-.7-.3-1.3-.9-1.7l-3.2-2.3v-4.4h10.4c.7 0 1.3-.6 1.3-1.3v-1.1c0-1-.6-1.8-1.5-2.1Z"/><path d="M8 18.3h16v2H8z" opacity=".25"/>'+'</svg>';
+  if(kind==="regional")return base+'<path d="M27 14.5 17.2 11V5c0-.8-.6-1.4-1.4-1.4h-1.6c-.8 0-1.4.6-1.4 1.4v6l-9.8 3.5c-.8.3-1.3 1-1.3 1.8v.8c0 .6.5 1.1 1.1 1.1H12v4.3l-2.8 2c-.5.3-.8.9-.8 1.4v.5c0 .4.4.7.8.6l5.8-1.7 5.8 1.7c.4.1.8-.2.8-.6v-.5c0-.6-.3-1.1-.8-1.4l-2.8-2v-4.3H27c.6 0 1.1-.5 1.1-1.1v-.8c0-.8-.5-1.5-1.1-1.8Z"/>'+'</svg>';
+  if(kind==="turboprop")return base+'<path d="M27.5 14.7 17.3 11V5.2c0-.8-.6-1.4-1.4-1.4h-1.4c-.8 0-1.4.6-1.4 1.4V11L4.1 14.7c-.8.3-1.3 1-1.3 1.8v.7c0 .6.5 1 1 1h8.9v4.5l-2.5 1.8c-.5.3-.7.8-.7 1.3v.5c0 .4.4.7.8.5l4.9-1.5 4.9 1.5c.4.1.8-.1.8-.5v-.5c0-.5-.3-1-.7-1.3l-2.5-1.8v-4.5h8.9c.6 0 1-.4 1-1v-.7c0-.8-.5-1.5-1.3-1.8Z"/><circle cx="9.2" cy="15.9" r="2.2" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="22.8" cy="15.9" r="2.2" fill="none" stroke="currentColor" stroke-width="1.4"/>'+'</svg>';
+  if(kind==="helicopter")return base+'<path d="M5 8h22M15.2 9.2v13.6M12 22.8h6.4M10.3 25.2h11.4M7.2 25.2h-3M24.8 25.2h3M15.2 12.2l-3.7 4.2h7.4z"/><circle cx="15.2" cy="8" r="1.7"/><path d="M15.2 19.1c-3.5 0-6.6 1.7-8.3 4.2M15.2 19.1c3.5 0 6.6 1.7 8.3 4.2"/>'+'</svg>';
+  if(kind==="military")return base+'<path d="M29.4 14.7 18.2 12l-2.2-8.6h-2l-1.8 8.6L3 14.7c-.8.2-1.3.9-1.3 1.7v.9c0 .6.5 1.1 1.1 1.1h9.3l-1.1 7.1 3.9-2.2 2.1 1.9 2.1-1.9 3.9 2.2-1.1-7.1h9.3c.6 0 1.1-.5 1.1-1.1v-.9c0-.8-.5-1.5-1.3-1.7Z"/>'+'</svg>';
+  if(kind==="general")return base+'<path d="M27.4 14.9 17.4 12V5.7c0-.8-.6-1.4-1.4-1.4h-2c-.8 0-1.4.6-1.4 1.4V12l-9.8 2.9c-.8.2-1.3.9-1.3 1.7v.7c0 .6.5 1.1 1.1 1.1h9.2v4l-2.6 1.8c-.4.3-.7.8-.7 1.3v.4c0 .4.4.7.8.6l4.8-1.2 4.8 1.2c.4.1.8-.2.8-.6v-.4c0-.5-.3-1-.7-1.3l-2.6-1.8v-4h9.2c.6 0 1.1-.5 1.1-1.1v-.7c0-.8-.5-1.5-1.3-1.7Z"/>'+'</svg>';
+  return base+'<path d="M28 14.6 18 11.7V5c0-.8-.6-1.4-1.4-1.4h-1.8c-.8 0-1.4.6-1.4 1.4v6.7L3 14.6c-.8.2-1.4 1-1.4 1.8v.8c0 .6.5 1.1 1.1 1.1h9.7v4.1l-2.8 1.9c-.5.3-.7.8-.7 1.4v.4c0 .4.4.7.8.6l4.9-1.4 4.9 1.4c.4.1.8-.2.8-.6v-.4c0-.6-.3-1.1-.7-1.4l-2.8-1.9v-4.1h9.7c.6 0 1.1-.5 1.1-1.1v-.8c0-.8-.6-1.6-1.4-1.8Z"/>'+'</svg>';
+}
+function labelForFlight(f){
+  const kind=aircraftClass(f), airliner=kind==="widebody"||kind==="narrowbody"||kind==="regional";
+  return airliner&&String(f.livery_name||"").trim()?String(f.livery_name).trim():String(f.callsign||f.username||f.flight_id||"Flight").trim();
+}
+function reportEpoch(v){const n=Date.parse(String(v||""));return Number.isFinite(n)?n:null;}
+function dataAgeSeconds(f){const t=reportEpoch(f?.last_report);return t==null?Infinity:Math.max(0,(Date.now()-t)/1000);}
+function flightStatus(f){
+  const age=dataAgeSeconds(f);
+  if(!Number.isFinite(age))return"stale";
+  if(age<=25&&f?.connected!==false)return"live";
+  if(age<=75)return"delayed";
+  return"stale";
+}
+function dataQualityScore(){
+  const ages=visibleFlights.map(dataAgeSeconds).filter(Number.isFinite);
+  if(!ages.length)return"Unknown";
+  const avg=ages.reduce((a,b)=>a+b,0)/ages.length;
+  return avg<=20?"Excellent":avg<=40?"Good":avg<=75?"Delayed":"Stale";
+}
+function haversineNmClient(lat1,lon1,lat2,lon2){
+  if(![lat1,lon1,lat2,lon2].every(Number.isFinite))return Infinity;
+  const r=3440.065,p1=lat1*Math.PI/180,p2=lat2*Math.PI/180;
+  const dp=(lat2-lat1)*Math.PI/180,dl=shortestLonDelta(lon1,lon2)*Math.PI/180;
+  const a=Math.sin(dp/2)**2+Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2;
+  return r*2*Math.atan2(Math.sqrt(a),Math.sqrt(Math.max(0,1-a)));
+}
+function nearestNeighborFlights(f,limit=8){
+  const lat=Number(f?.latitude),lon=normLon(f?.longitude);
+  if(!Number.isFinite(lat)||!Number.isFinite(lon))return[];
+  return allFlights.filter(x=>String(x.flight_id)!==String(f.flight_id)&&validPos(x))
+    .map(x=>({...x,_distance_nm:haversineNmClient(lat,lon,Number(x.latitude),normLon(x.longitude))}))
+    .filter(x=>Number.isFinite(x._distance_nm)&&x._distance_nm<=100)
+    .sort((a,b)=>a._distance_nm-b._distance_nm).slice(0,limit);
+}
+function recordReplaySnapshot(f){
+  const id=String(f?.flight_id||""); if(!id||!validPos(f))return;
+  const t=reportEpoch(f.last_report)||Date.now(), history=replayBuffer.get(id)||[];
+  if(history.some(x=>x.t===t))return;
+  history.push({t,lat:Number(f.latitude),lon:normLon(f.longitude),alt:Number(f.altitude_ft),speed:Number(f.speed_kt),vs:Number(f.vertical_speed_fpm),heading:Number(f.heading_deg),track:Number(f.track_deg)});
+  while(history.length>MAX_REPLAY_POINTS)history.shift();
+  replayBuffer.set(id,history);
+}
+function addStatusBadge(f){
+  const s=flightStatus(f), age=Number.isFinite(dataAgeSeconds(f))?Math.round(dataAgeSeconds(f))+"s ago":"age unknown";
+  return '<span class="flight-status-badge '+s+'">'+(s==="live"?"Live":s==="delayed"?"Delayed":"Stale")+' · '+age+'</span>';
+}
+
 function validPos(f){
   const lat=Number(f.latitude),lon=normLon(f.longitude);
   return Number.isFinite(lat)&&lat>=-85&&lat<=85&&Number.isFinite(lon);
@@ -160,26 +253,22 @@ const planeSvg='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.5 11.1 
 function planePixels(){
   return settings.planeSize==="small"?12:settings.planeSize==="large"?18:14;
 }
-function planeIcon(){
-  const px=planePixels();
-  return L.divIcon({
-    className:"",
-    html:'<div class="aircraft-marker" style="--plane-size:'+px+'px">'+planeSvg+"</div>",
-    iconSize:[px,px],
-    iconAnchor:[px/2,px/2]
-  });
+
+function planePixelsForClass(kind){
+  const base=settings.planeSize==="small"?12:settings.planeSize==="large"?18:14;
+  const mul={widebody:1.28,narrowbody:1.16,regional:1.04,turboprop:1,helicopter:.96,military:1.05,general:.9,other:1}[kind]||1;
+  return Math.round(base*mul);
+}
+function planeIcon(f){
+  const kind=aircraftClass(f||{}),px=planePixelsForClass(kind);
+  return L.divIcon({className:"",html:'<div class="aircraft-marker type-'+kind+'" style="--plane-size:'+px+'px">'+aircraftIconSvg(kind)+'</div>',iconSize:[px,px],iconAnchor:[px/2,px/2]});
 }
 function refreshPlaneIcons(){
-  for(const marker of markers.values())marker.setIcon(planeIcon());
+  for(const [id,marker] of markers){const f=flightById.get(id);if(f)marker.setIcon(planeIcon(f));}
 }
-
 function createPlaneMarker(f){
   const id=String(f.flight_id||f.callsign||Math.random());
-  const marker=L.marker([clamp(Number(f.latitude),-85,85),normLon(f.longitude)],{
-    icon:planeIcon(),
-    keyboard:false,
-    zIndexOffset:10
-  });
+  const marker=L.marker([clamp(Number(f.latitude),-85,85),normLon(f.longitude)],{icon:planeIcon(f),keyboard:false,zIndexOffset:10});
   marker._id=id;
   marker._lat=Number(f.latitude);
   marker._lon=normLon(f.longitude);
@@ -187,51 +276,45 @@ function createPlaneMarker(f){
   marker._targetLon=marker._lon;
   marker._heading=Number(f.heading_deg??f.track_deg??0);
   marker._targetHeading=marker._heading;
-  marker.bindTooltip(f.callsign||f.username||"Flight",{direction:"top",sticky:true,opacity:.92});
+  marker._reportedAt=reportEpoch(f.last_report);
+  marker.bindTooltip(labelForFlight(f),{direction:"top",sticky:true,opacity:.92});
   marker.on("click",()=>{touch();const x=flightById.get(id);if(x)loadFlightDetail(x)});
   marker.on("dblclick",e=>{touch();L.DomEvent.stopPropagation(e);const x=flightById.get(id);if(x)followFlight(x)});
-  marker.addTo(map);
-  markers.set(id,marker);
-  return marker;
+  marker.addTo(map); markers.set(id,marker); return marker;
 }
-
 function updatePlane(marker,f,selected){
   if(!validPos(f))return;
-  const lat=clamp(Number(f.latitude),-85,85),lon=normLon(f.longitude);
-  marker._startLat=Number(marker._lat);
-  marker._startLon=Number(marker._lon);
-  marker._targetLat=lat;
-  marker._targetLon=lon;
-  marker._animStart=performance.now();
-  marker._animEnd=performance.now()+POLL_MS;
+  const lat=clamp(Number(f.latitude),-85,85),lon=normLon(f.longitude),now=performance.now();
+  const reportAt=reportEpoch(f.last_report);
+  marker._startLat=Number.isFinite(marker._lat)?marker._lat:lat;
+  marker._startLon=Number.isFinite(marker._lon)?marker._lon:lon;
+  marker._targetLat=lat; marker._targetLon=lon;
+  const interval=reportAt&&marker._reportedAt?reportAt-marker._reportedAt:POLL_MS;
+  marker._animStart=now;
+  marker._animDuration=clamp(interval||POLL_MS,1200,20000);
+  marker._animEnd=now+marker._animDuration;
   marker._targetHeading=Number.isFinite(Number(f.heading_deg))?Number(f.heading_deg):Number(f.track_deg)||0;
   marker._selected=selected;
-  marker.setTooltipContent(f.callsign||f.username||"Flight");
+  marker._reportedAt=reportAt||marker._reportedAt||null;
+  marker.setIcon(planeIcon(f));
+  marker.setTooltipContent(labelForFlight(f));
   const el=marker.getElement()?.querySelector(".aircraft-marker");
-  if(el){
-    el.classList.toggle("selected",selected);
-    el.style.transform="rotate("+marker._targetHeading+"deg)";
-  }
+  if(el){el.classList.toggle("selected",selected);el.style.transform="rotate("+marker._targetHeading+"deg)";}
+  recordReplaySnapshot(f);
 }
-
 function animatePlanes(now){
   for(const m of markers.values()){
     if(!Number.isFinite(m._targetLat)||!Number.isFinite(m._targetLon))continue;
-    const p=clamp((now-(m._animStart||now))/Math.max(1,(m._animEnd||now)-(m._animStart||now)),0,1);
+    const duration=Math.max(1,m._animDuration||POLL_MS);
+    const p=clamp((now-(m._animStart||now))/duration,0,1);
     const lat=(m._startLat??m._targetLat)+(m._targetLat-(m._startLat??m._targetLat))*p;
-    const d=shortestLonDelta(m._startLon??m._targetLon,m._targetLon);
-    let lon=(m._startLon??m._targetLon)+d*p;
-    lon=normLon(lon);
-    m.setLatLng([lat,lon]);
-    m._lat=lat;
-    m._lon=lon;
+    const lon=normLon((m._startLon??m._targetLon)+shortestLonDelta(m._startLon??m._targetLon,m._targetLon)*p);
+    m.setLatLng([lat,lon]); m._lat=lat; m._lon=lon;
     const el=m.getElement()?.querySelector(".aircraft-marker");
     if(el){
-      let h=m._heading??m._targetHeading;
-      const dh=shortestLonDelta(h,m._targetHeading);
-      h+=dh*Math.min(1,p);
-      m._heading=h;
-      el.style.transform="rotate("+h+"deg)";
+      const start=Number.isFinite(m._heading)?m._heading:m._targetHeading;
+      const delta=((m._targetHeading-start+540)%360)-180;
+      el.style.transform="rotate("+(start+delta*p)+"deg)";
     }
   }
   animationFrame=requestAnimationFrame(animatePlanes);
