@@ -634,47 +634,52 @@ async function loadAircraftPhoto(f){
     return;
   }
 
-  const norm=s=>String(s||"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
-  const aircraftNorm=norm(aircraft);
-  const liveryNorm=norm(livery);
-  const aircraftTokens=aircraftNorm.split(/\s+/).filter(t=>t.length>=2);
-  const modelMatch=aircraft.match(/(?:A\d{3}|B\d{3}|(?:737|747|757|767|777|787)(?:-?\d{2,4})?)/i);
-  const modelNorm=norm(modelMatch?.[0]||aircraft);
-
-  // Two independent public image indexes are checked. We only accept an image
-  // when the text metadata gives strong evidence for both the aircraft model
-  // and the operator/livery. A wrong picture is worse than no picture.
-  const queries=[...new Set([
-    [livery,aircraft].filter(Boolean).join(" "),
-    [aircraft,livery].filter(Boolean).join(" "),
-    aircraft+" aircraft",
-    livery+" aircraft"
-  ].filter(Boolean))];
-
-  const sourceQueries=[
-    {source:"Wikipedia",base:"https://en.wikipedia.org/w/api.php"},
-    {source:"Wikimedia Commons",base:"https://commons.wikimedia.org/w/api.php"}
-  ];
-
-  const aircraftWords=/\b(aircraft|airliner|airplane|aeroplane|aviation|jet|helicopter|airliner)\b/i;
-  const badWords=/\b(person|politician|actor|actress|terrorist|militant|criminal|footballer|singer|writer|president|minister|general)\b/i;
-
+  // The image and the verification evidence must come from genuinely
+  // independent sources. Wikimedia Commons supplies the display image;
+  // Planespotters independently corroborates the aircraft/operator text.
   try{
-    const candidates=[];
-    for(const src of sourceQueries){
-      for(const query of queries){
-        const url=src.base+"?action=query&generator=search&gsrsearch="+
-          encodeURIComponent(query)+
-          "&gsrlimit=10&prop=pageimages|pageterms|info&inprop=url&piprop=thumbnail&pilimit=10&pithumbsize=900&wbptterms=description&format=json&origin=*";
-        const r=await fetch(url,{cache:"force-cache"});
-        if(!r.ok)continue;
-        const d=await r.json();
-        for(const p of Object.values(d.query?.pages||{})){
-          if(p?.thumbnail?.source)candidates.push({...p,_source:src.source});
-        }
-        if(candidates.length>=30)break;
-      }
+    const verifyUrl=API+
+      "?detail=photo_verify&aircraft="+encodeURIComponent(aircraft)+
+      "&livery="+encodeURIComponent(livery);
+    const verifyResponse=await fetch(verifyUrl,{cache:"no-store"});
+    const verification=verifyResponse.ok?await verifyResponse.json():null;
+
+    if(!verification?.verified){
+      aircraftPhotoCache.set(key,null);
+      if(box.dataset.flightId===flightKey)renderAircraftPhoto(box,null);
+      return;
     }
+
+    const norm=s=>String(s||"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+    const aircraftNorm=norm(aircraft);
+    const liveryNorm=norm(livery);
+    const aircraftTokens=aircraftNorm.split(/\s+/).filter(t=>t.length>=2);
+    const modelMatch=aircraft.match(/(?:A\d{3}|B\d{3}|(?:737|747|757|767|777|787)(?:-?\d{2,4})?)/i);
+    const modelNorm=norm(modelMatch?.[0]||aircraft);
+
+    const queries=[...new Set([
+      [livery,aircraft].filter(Boolean).join(" "),
+      [aircraft,livery].filter(Boolean).join(" "),
+      aircraft+" aircraft",
+      livery+" aircraft"
+    ].filter(Boolean))];
+
+    const candidates=[];
+    for(const query of queries){
+      const url="https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch="+
+        encodeURIComponent(query)+
+        "&gsrlimit=10&prop=pageimages|pageterms|info&inprop=url&piprop=thumbnail&pilimit=10&pithumbsize=900&wbptterms=description&format=json&origin=*";
+      const r=await fetch(url,{cache:"force-cache"});
+      if(!r.ok)continue;
+      const d=await r.json();
+      for(const p of Object.values(d.query?.pages||{})){
+        if(p?.thumbnail?.source)candidates.push(p);
+      }
+      if(candidates.length>=30)break;
+    }
+
+    const aircraftWords=/\b(aircraft|airliner|airplane|aeroplane|aviation|jet|helicopter)\b/i;
+    const badWords=/\b(person|politician|actor|actress|terrorist|militant|criminal|footballer|singer|writer|president|minister|general)\b/i;
 
     const scored=candidates.map(p=>{
       const title=String(p.title||"");
@@ -682,29 +687,33 @@ async function loadAircraftPhoto(f){
       const text=(title+" "+description).toLowerCase();
       const titleNorm=norm(title);
       let score=0;
-      const modelEvidence=modelNorm && titleNorm.includes(modelNorm);
-      const liveryEvidence=!liveryNorm || titleNorm.includes(liveryNorm) || text.includes(liveryNorm);
+      const modelEvidence=Boolean(modelNorm&&titleNorm.includes(modelNorm));
+      const liveryEvidence=!liveryNorm||titleNorm.includes(liveryNorm)||text.includes(liveryNorm);
 
-      if(modelEvidence)score+=14;
+      if(modelEvidence)score+=16;
       else if(aircraftTokens.some(t=>titleNorm.includes(t)))score+=3;
-      if(liveryNorm&&liveryEvidence)score+=12;
+      if(liveryNorm&&liveryEvidence)score+=14;
       if(aircraftWords.test(description))score+=6;
-      if(badWords.test(description)||badWords.test(title))score-=40;
+      if(badWords.test(description)||badWords.test(title))score-=50;
       if(/\b(747|737|777|787|a3[0-9]{2}|a220|a330|a340|a350|a380|md[- ]?11|md[- ]?80|crj|embraer|e170|e175|e190|e195|atr|dash)\b/i.test(text))score+=3;
 
-      // If an operator/livery is known, require explicit evidence for it.
-      // For generic/no-livery aircraft, model evidence alone is acceptable.
-      const verified=Boolean(modelEvidence && (!liveryNorm || liveryEvidence) && !badWords.test(description) && !badWords.test(title));
-      return {p,score,verified,description};
-    }).filter(x=>x.verified&&x.score>=24).sort((a,b)=>b.score-a.score);
+      const verified=Boolean(
+        modelEvidence &&
+        (!liveryNorm||liveryEvidence) &&
+        !badWords.test(description) &&
+        !badWords.test(title)
+      );
+      return {p,score,verified};
+    }).filter(x=>x.verified&&x.score>=30).sort((a,b)=>b.score-a.score);
 
     const best=scored[0]?.p;
     const bestScore=scored[0]?.score||0;
     const photo=best?{
       src:best.thumbnail.source,
       title:best.title||aircraft,
-      url:best.fullurl||("https://en.wikipedia.org/wiki/"+encodeURIComponent(best.title||"")),
-      source:best._source,
+      url:best.fullurl||("https://commons.wikimedia.org/wiki/"+encodeURIComponent(best.title||"")),
+      source:"Wikimedia Commons",
+      verification_source:"Planespotters.net",
       verified:true,
       score:bestScore
     }:null;
