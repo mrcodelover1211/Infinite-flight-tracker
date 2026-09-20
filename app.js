@@ -847,41 +847,34 @@ function drawRoute(f){
   const plannedParts=splitRoutePoints(planned);
   const actualParts=splitRoutePoints(actual);
 
-  // FR24-style presentation: the flown trail is the prominent line, while
-  // the planned route stays thin and subdued. Do not dump waypoint dots all
-  // over the map and never auto-fit the map to a selected flight.
-  for(const part of plannedParts){
-    routeLayers.push(L.polyline(part,{
-      weight:1.5,
-      opacity:.32,
-      color:"#a78bfa",
-      dashArray:"4 7",
-      lineCap:"round",
-      lineJoin:"round",
-      interactive:false,
-      noClip:false
-    }).addTo(map));
-  }
+  // FR24-style presentation: show the flown trail only when the Live API
+  // provides it. The flight plan is a fallback, kept subtle so the route
+  // remains readable instead of becoming a spaghetti diagram.
+  const displayParts=actualParts.length?actualParts:plannedParts;
+  const displayPlannedOnly=!actualParts.length;
 
-  for(const part of actualParts){
+  for(const part of displayParts){
     routeLayers.push(L.polyline(part,{
-      weight:5,
-      opacity:.16,
-      color:"#ffd43b",
+      weight:displayPlannedOnly?2.5:5,
+      opacity:displayPlannedOnly?.25:.16,
+      color:displayPlannedOnly?"#a78bfa":"#ffd43b",
+      dashArray:displayPlannedOnly?"4 7":null,
       lineCap:"round",
       lineJoin:"round",
       interactive:false,
       noClip:false
     }).addTo(map));
-    routeLayers.push(L.polyline(part,{
-      weight:2.5,
-      opacity:.92,
-      color:"#ffd43b",
-      lineCap:"round",
-      lineJoin:"round",
-      interactive:false,
-      noClip:false
-    }).addTo(map));
+    if(!displayPlannedOnly){
+      routeLayers.push(L.polyline(part,{
+        weight:2.5,
+        opacity:.92,
+        color:"#ffd43b",
+        lineCap:"round",
+        lineJoin:"round",
+        interactive:false,
+        noClip:false
+      }).addTo(map));
+    }
   }
 
   if(!planned.length&&!actual.length){
