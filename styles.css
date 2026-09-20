@@ -16,3 +16,5 @@
 .airport-marker{font-size:11px;font-weight:800;color:#dce7f1;text-shadow:0 1px 3px #000}
 @media(max-width:1100px){.filter-input{width:110px!important;max-width:20vw}}
 @media(max-width:900px){.filter-input{flex:1;width:90px!important;max-width:none}.feature-strip{font-size:10px}.controls input{order:10}.filter-input{order:11}}
+
+.airport-label-wrap{background:transparent!important;border:0!important}.airport-label{border:1px solid #46617a;background:#101a25eF;color:#dce9f5;border-radius:999px;padding:3px 7px;font-size:10px;font-weight:800;box-shadow:0 2px 7px #0007;cursor:pointer;white-space:nowrap}.airport-label:hover{background:#29405a;border-color:#6287a8}.airport-label-wrap .leaflet-marker-icon{background:transparent}
