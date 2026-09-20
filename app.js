@@ -68,6 +68,9 @@ let globeInstance=null;
 let globeScriptPromise=null;
 let mapMode="2d";
 const sessionFavorites=new Set();
+const recentFlights=[];
+const MAX_RECENT_FLIGHTS=5;
+let trafficListMode="live";
 
 const settings={
   trails:true,
@@ -426,6 +429,16 @@ function applyFilters(){
   updateLiveStats();
 }
 
+function rememberRecentFlight(f){
+  const id=String(f?.flight_id||"");
+  if(!id)return;
+  const snapshot={...f};
+  const existing=recentFlights.findIndex(x=>String(x.flight_id)===id);
+  if(existing>=0)recentFlights.splice(existing,1);
+  recentFlights.unshift(snapshot);
+  if(recentFlights.length>MAX_RECENT_FLIGHTS)recentFlights.pop();
+}
+
 function renderTrafficList(){
   const box=$("trafficList");
   if(!listVisible){
@@ -434,13 +447,18 @@ function renderTrafficList(){
   }
   box.classList.remove("hidden");
 
-  const rows=visibleFlights
+  const rows=(trafficListMode==="recent"?recentFlights:visibleFlights)
     .filter(validPos)
     .slice()
-    .sort((a,b)=>String(a.callsign||a.username||"").localeCompare(String(b.callsign||b.username||"")))
+    .sort((a,b)=>{
+      if(trafficListMode==="recent")return recentFlights.indexOf(a)-recentFlights.indexOf(b);
+      return String(a.callsign||a.username||"").localeCompare(String(b.callsign||b.username||""));
+    })
     .slice(0,40);
 
-  $("listSummary").textContent=visibleFlights.length.toLocaleString()+" matches";
+  $("listSummary").textContent=trafficListMode==="recent"
+    ?recentFlights.length+" recent"
+    :visibleFlights.length.toLocaleString()+" matches";
   $("flightRows").innerHTML=rows.map(f=>{
     const origin=f.origin?.identifier||"----";
     const destination=f.destination?.identifier||"----";
@@ -454,8 +472,8 @@ function renderTrafficList(){
   document.querySelectorAll("#flightRows .flight-row").forEach(row=>{
     row.onclick=()=>{
       touch();
-      const f=visibleFlights.find(x=>String(x.flight_id)===row.dataset.flight);
-      if(f)loadFlightDetail(f);
+      const f=allFlights.find(x=>String(x.flight_id)===row.dataset.flight)||recentFlights.find(x=>String(x.flight_id)===row.dataset.flight);
+      if(f&&validPos(f))focusFlight(f);
     };
   });
 }
@@ -589,6 +607,8 @@ function selectFlight(f){
     trailHistory.delete(oldId);
   }
   selectedFlight=f;
+  rememberRecentFlight(f);
+  trafficListMode="live";
   clearRoute();
   renderFlights();
 }
@@ -1863,8 +1883,17 @@ async function copySelectedFlight(){
 
 function toggleList(){
   touch();
+  trafficListMode="live";
   listVisible=!listVisible;
   $("listBtn").classList.toggle("active",listVisible);
+  renderTrafficList();
+}
+
+function openRecentFlights(){
+  touch();
+  trafficListMode="recent";
+  listVisible=true;
+  $("listBtn").classList.add("active");
   renderTrafficList();
 }
 
@@ -1910,6 +1939,7 @@ $("clearSearchBtn").onclick=clearSearch;
 $("search").onkeydown=e=>{if(e.key==="Enter")runSearch()};
 
 $("listBtn").onclick=toggleList;
+$("recentBtn").onclick=openRecentFlights;
 $("searchTopBtn").onclick=()=>{
   touch();
   listVisible=true;
@@ -1950,6 +1980,7 @@ $("settingsLayersBtn").onclick=()=>{closeSettings();openSettings();};
 $("settingsFleetBtn").onclick=()=>{closeSettings();openFleet();};
 $("settingsReplayBtn").onclick=()=>{closeSettings();selectedFlight?openReplay(selectedFlight):error("Select a flight first.");};
 $("settingsGlobeBtn").onclick=()=>{closeSettings();setMapMode("3d");};
+$("settingsRecentBtn").onclick=()=>{closeSettings();openRecentFlights()};
 document.querySelectorAll("#mapModePicker button").forEach(b=>{
   b.onclick=()=>{touch();setMapMode(b.dataset.mapMode);}
 });
