@@ -306,6 +306,13 @@ body[data-device="phone"] .check-row{height:36px;font-size:10px}
 
 
 /* Pro tracker layer + detail surfaces */
+.aircraft-hitbox{
+  width:36px;height:36px;
+  display:flex;align-items:center;justify-content:center;
+  pointer-events:auto;
+  touch-action:manipulation;
+  cursor:pointer;
+}
 .aircraft-marker{pointer-events:none;line-height:0;will-change:transform;contain:layout style paint}
 .aircraft-marker svg{display:block}
 .aircraft-marker.type-widebody svg{width:calc(var(--plane-size)*.98);height:calc(var(--plane-size)*.98)}
