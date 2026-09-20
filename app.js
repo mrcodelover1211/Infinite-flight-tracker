@@ -622,7 +622,11 @@ function renderWorld(){
       (a.name||"Airport")+" · "+(a.icao||"")+ (settings.labels?" · "+traffic+" flights":""),
       {direction:"top"}
     );
-    marker.on("click",()=>{touch();loadAirport(a.icao)});
+    marker.on("click",()=>{
+      touch();
+      map.setView([lat,lon],Math.max(map.getZoom(),8),{animate:true});
+      loadAirport(a.icao);
+    });
     marker.addTo(map);
     airportMarkers.set(a.icao,marker);
   }
@@ -694,9 +698,11 @@ async function loadAirport(icao){
 function renderAirport(d){
   const a=d.airport||{};
   const list=airportTab==="arrivals"?d.inbound||[]:d.outbound||[];
-
+  const lat=Number(a.latitude),lon=Number(a.longitude);
   $("airportPanel").innerHTML='<div class="airport-title">'+esc(a.icao||"Airport")+'</div>'+
     '<div class="muted">'+esc(a.name||"")+'</div>'+
+    '<div id="airportPhoto" class="airport-photo"><div class="airport-photo-loading">Loading airport photo…</div></div>'+
+    '<div class="airport-location">'+(Number.isFinite(lat)&&Number.isFinite(lon)?lat.toFixed(4)+", "+lon.toFixed(4):"Location unavailable")+'</div>'+
     '<div class="tabs"><button id="arrivalsTab" class="'+(airportTab==="arrivals"?"active":"")+'">Arrivals ('+(d.inbound_count??0)+')</button>'+
     '<button id="departuresTab" class="'+(airportTab==="departures"?"active":"")+'">Departures ('+(d.outbound_count??0)+')</button></div>'+
     (list.map(x=>{
@@ -727,7 +733,77 @@ function renderAirport(d){
       if(f)openBooking(f,a);
     };
   });
+
+  loadAirportPhoto(a);
 }
+
+const airportPhotoCache=new Map();
+async function loadAirportPhoto(a){
+  const box=$("airportPhoto");
+  if(!box)return;
+  const icao=String(a.icao||"").trim().toUpperCase();
+  const name=String(a.name||"").trim();
+  const key=icao+"|"+name;
+  if(airportPhotoCache.has(key)){
+    renderAirportPhoto(box,airportPhotoCache.get(key));
+    return;
+  }
+
+  const queries=[
+    [name,icao,"airport"].filter(Boolean).join(" "),
+    [icao,"airport"].filter(Boolean).join(" ")
+  ];
+  try{
+    let candidates=[];
+    for(const query of queries){
+      const url="https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch="+
+        encodeURIComponent(query)+
+        "&gsrlimit=10&prop=pageimages|pageterms|info&inprop=url&piprop=thumbnail&pilimit=10&pithumbsize=900&wbptterms=description&format=json&origin=*";
+      const r=await fetch(url,{cache:"force-cache"});
+      const d=await r.json();
+      candidates.push(...Object.values(d.query?.pages||{}));
+      if(candidates.length>=10)break;
+    }
+
+    const airportWords=/\\b(airport|international airport|aerodrome|airfield|aviation)\\b/i;
+    const badWords=/\\b(person|politician|actor|actress|terrorist|militant|criminal|footballer|singer|writer|president|minister)\\b/i;
+    const icaoNorm=icao.toLowerCase();
+    const nameTokens=name.toLowerCase().replace(/[^a-z0-9]+/g," ").split(/\\s+/).filter(x=>x.length>2);
+
+    const scored=candidates.filter(p=>p?.thumbnail?.source).map(p=>{
+      const title=String(p.title||"");
+      const desc=String(p.terms?.description?.[0]||"");
+      const text=(title+" "+desc).toLowerCase();
+      let score=0;
+      if(airportWords.test(text))score+=8;
+      if(badWords.test(text))score-=30;
+      if(title.toLowerCase().includes(icaoNorm))score+=10;
+      for(const token of nameTokens)if(title.toLowerCase().includes(token))score+=2;
+      return {p,score,desc};
+    }).filter(x=>x.score>=8&&!badWords.test(x.desc)).sort((a,b)=>b.score-a.score);
+
+    const best=scored[0]?.p;
+    const photo=best?{
+      src:best.thumbnail.source,
+      title:best.title||name||icao,
+      url:best.fullurl||("https://en.wikipedia.org/wiki/"+encodeURIComponent(best.title||""))
+    }:null;
+    airportPhotoCache.set(key,photo);
+    renderAirportPhoto(box,photo);
+  }catch{
+    airportPhotoCache.set(key,null);
+    renderAirportPhoto(box,null);
+  }
+}
+
+function renderAirportPhoto(box,photo){
+  if(photo){
+    box.innerHTML='<img src="'+esc(photo.src)+'" alt="'+esc(photo.title)+'"><div class="airport-photo-credit">Photo: <a href="'+esc(photo.url)+'" target="_blank" rel="noopener">'+esc(photo.title)+'</a></div>';
+  }else{
+    box.innerHTML='<div class="airport-photo-empty">No airport photo found.</div>';
+  }
+}
+
 
 function openBooking(f,airport){
   const overlay=$("bookingOverlay");
