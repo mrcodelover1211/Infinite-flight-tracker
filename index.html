@@ -27,7 +27,8 @@
     <button id="airportBtn" class="top-btn" title="Find an airport by ICAO code">⌖ Find airport</button>
     <button id="fitBtn" class="top-btn" title="Fit all visible aircraft on the map">Fit aircraft</button>
     <button id="randomBtn" class="top-btn" title="Jump to a random live aircraft">Random flight</button>
-    <button id="worldTopBtn" class="top-btn" title="Return to world view">World</button>
+    <button id="worldTopBtn" class="top-btn" title="Return to 2D world view">World</button>
+    <button id="map3dTopBtn" class="top-btn" title="Open the full 3D globe, including polar regions">3D Globe</button>
     <button id="statsBtn" class="top-btn" title="Open live traffic statistics">Stats</button>
     <button id="fleetBtn" class="top-btn" title="Open the fleet board">Fleet</button>
     <button id="layersBtn" class="top-btn" title="Open map layers">Layers</button>
@@ -114,6 +115,15 @@
     </div>
 
     <div class="settings-section">
+      <div class="settings-title">Map mode</div>
+      <div class="segmented" id="mapModePicker">
+        <button class="active" data-map-mode="2d">2D Map</button>
+        <button data-map-mode="3d">3D Globe</button>
+      </div>
+      <div class="muted map-mode-note">3D Globe uses a full Earth view, so Antarctica and the polar regions remain available instead of being clipped by the 2D map.</div>
+    </div>
+
+    <div class="settings-section">
       <div class="settings-title">Map</div>
       <div class="settings-grid">
         <button class="setting-toggle active" data-setting="airports">✓ Airports</button>
@@ -139,7 +149,7 @@
         <button id="settingsLayersBtn">◈ Layers</button>
         <button id="settingsFleetBtn">▤ Fleet board</button>
         <button id="settingsReplayBtn">◀ Replay</button>
-        <button id="settingsGlobeBtn">◎ Globe view</button>
+        <button id="settingsGlobeBtn">◎ 3D Globe</button>
       </div>
     </div>
 
@@ -284,7 +294,7 @@
   }
   loadScript("https://cdn.jsdelivr.net/npm/leaflet@1.9.4/dist/leaflet.js")
     .catch(function(){ return loadScript("https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"); })
-    .then(function(){ return loadScript("app.js?v=livefix32"); })
+    .then(function(){ return loadScript("app.js?v=livefix33"); })
     .catch(function(){
       var el=document.getElementById("status");
       if(el){el.textContent="● Map library unavailable";el.className="status error";}
