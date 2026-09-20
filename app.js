@@ -5,7 +5,7 @@ if(!["expert","training","casual"].includes(selectedServer))selectedServer="expe
 const map=L.map("map",{worldCopyJump:true,zoomControl:true,preferCanvas:true,maxBounds:[[-90,-540],[90,540]],maxBoundsViscosity:.25}).setView([20,0],2);
 L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap contributors"}).addTo(map);
 
-const markers=new Map(), trailLines=new Map(), trailHistory=new Map(), worldMarkers=new Map();
+const markers=new Map(), trailLines=new Map(), trailHistory=new Map(), worldMarkers=new Map(), atcMarkers=new Map();
 let selectedRouteLayer=null, allFlights=[], visibleFlights=[], loading=false, selectedFlight=null, selectedSeat=null, airportTab="arrivals", airportsVisible=false;
 const $=id=>document.getElementById(id);
 const escapeHtml=value=>String(value??"").replaceAll("&","&amp;").replaceAll("<","&lt;").replaceAll(">","&gt;").replaceAll('"',"&quot;").replaceAll("'","&#039;");
@@ -123,17 +123,24 @@ async function loadWorld(){
   const r=await fetch(API+"?server="+encodeURIComponent(selectedServer)+"&detail=world",{cache:"no-store"}),d=await r.json();
   if(!r.ok)throw new Error(d.message||"World data unavailable");
   for(const m of worldMarkers.values())map.removeLayer(m);worldMarkers.clear();
+  for(const m of atcMarkers.values())map.removeLayer(m);atcMarkers.clear();
   for(const a of (d.airports||[])){
     const lat=Number(a.latitude),lon=normLon(a.longitude);if(!Number.isFinite(lat)||!Number.isFinite(lon))continue;
     const marker=L.circleMarker([lat,lon],{radius:5,weight:1,fillOpacity:.65,opacity:.9});
     marker.bindTooltip(a.icao||a.name||"Airport",{direction:"top"});
     marker.on("click",()=>loadAirport(a.icao));marker.addTo(map);worldMarkers.set(a.icao||String(lat)+":"+lon,marker);
   }
-  $("airportCount").textContent=(d.airports||[]).length+" active airports";
+  for(const a of (d.atc||[])){
+    const lat=Number(a.latitude),lon=normLon(a.longitude);if(!Number.isFinite(lat)||!Number.isFinite(lon))continue;
+    const marker=L.circleMarker([lat,lon],{radius:7,weight:2,fillOpacity:.35,opacity:.9});
+    marker.bindTooltip("ATC · "+(a.airport||"Center")+" · "+(a.username||"Unknown"),{direction:"top"});
+    marker.addTo(map);atcMarkers.set((a.airport||"ATC")+":"+(a.username||"")+":"+lat,marker);
+  }
+  $("airportCount").textContent=(d.airports||[]).length+" airports · "+(d.atc||[]).length+" ATC";
 }
 function toggleAirports(){
   airportsVisible=!airportsVisible;$("airportsToggle").classList.toggle("active",airportsVisible);
-  if(airportsVisible)loadWorld().catch(e=>showError(e.message));else for(const m of worldMarkers.values())map.removeLayer(m);
+  if(airportsVisible)loadWorld().catch(e=>showError(e.message));else {for(const m of worldMarkers.values())map.removeLayer(m);for(const m of atcMarkers.values())map.removeLayer(m);}
 }
 async function loadAirport(icao){
   icao=String(icao||"").trim().toUpperCase();
@@ -160,5 +167,7 @@ $("searchBtn").addEventListener("click",applySearch);$("resetBtn").addEventListe
 $("search").addEventListener("keydown",e=>{if(e.key==="Enter")applySearch()});$("airportBtn").addEventListener("click",()=>{const box=$("airportSearch"),open=box.classList.toggle("hidden")===false;$("airportBtn").setAttribute("aria-expanded",String(open));if(open){$("airportInput").focus();$("airportInput").select()}});
 $("airportGo").addEventListener("click",()=>loadAirport($("airportInput").value));$("airportInput").addEventListener("keydown",e=>{if(e.key==="Enter")loadAirport(e.target.value)});
 document.querySelectorAll(".server-btn").forEach(b=>b.addEventListener("click",()=>setServer(b.dataset.server)));
+document.querySelectorAll(".server-btn").forEach(b=>b.classList.toggle("active",b.dataset.server===selectedServer));
+$("serverLabel").textContent=selectedServer[0].toUpperCase()+selectedServer.slice(1);
 document.addEventListener("visibilitychange",()=>{if(document.visibilityState==="visible")load()});
 load();setInterval(()=>{if(document.visibilityState==="visible")load()},POLL_MS);
