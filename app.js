@@ -293,9 +293,10 @@ function planeIcon(f){
   // Keep the silhouette compact, but give touch devices a generous invisible
   // hit target so tiny aircraft are not a precision-tapping minigame.
   const hit=36;
+  const callsign=esc(f?.callsign||f?.username||"");
   return L.divIcon({
     className:"",
-    html:'<div class="aircraft-hitbox" aria-hidden="true"><div class="aircraft-marker type-'+kind+'" style="--plane-size:'+px+'px">'+aircraftIconSvg(kind,f?.aircraft_type)+'</div></div>',
+    html:'<div class="aircraft-hitbox"><div class="aircraft-marker type-'+kind+'" style="--plane-size:'+px+'px">'+aircraftIconSvg(kind,f?.aircraft_type)+'</div><span class="selected-callsign">'+callsign+'</span></div>',
     iconSize:[hit,hit],
     iconAnchor:[hit/2,hit/2]
   });
@@ -317,18 +318,11 @@ function createPlaneMarker(f){
   marker.bindTooltip(labelForFlight(f),{direction:"top",sticky:true,opacity:.92});
   marker.on("click",e=>{
     touch();
-    // Several aircraft can overlap at tracker zoom levels. Resolve the click
-    // to the marker whose center is actually closest to the user's finger.
-    const clickPoint=map.latLngToContainerPoint(e.latlng);
-    let bestId=id,bestDistance=Infinity;
-    for(const [otherId,otherMarker] of markers){
-      const otherLatLng=otherMarker.getLatLng();
-      const point=map.latLngToContainerPoint(otherLatLng);
-      const dx=point.x-clickPoint.x,dy=point.y-clickPoint.y;
-      const distance=Math.hypot(dx,dy);
-      if(distance<bestDistance){bestDistance=distance;bestId=otherId;}
-    }
-    const x=flightById.get(bestId)||flightById.get(id);
+    // The hitbox belongs to this marker, so keep the event tied to its flight.
+    // Do not re-resolve by screen distance: overlapping aircraft can otherwise
+    // make a tap on Etihad open a different aircraft's card.
+    L.DomEvent.stopPropagation(e);
+    const x=flightById.get(id);
     if(x)loadFlightDetail(x);
   });
   marker.on("dblclick",e=>{touch();L.DomEvent.stopPropagation(e);const x=flightById.get(id);if(x)followFlight(x)});
@@ -354,8 +348,15 @@ function updatePlane(marker,f,selected){
     marker._iconKey=iconKey;
   }
   marker.setTooltipContent(labelForFlight(f));
-  const el=marker.getElement()?.querySelector(".aircraft-marker");
-  if(el){el.classList.toggle("selected",selected);el.style.transform="rotate("+marker._targetHeading+"deg)";}
+  const markerEl=marker.getElement();
+  const el=markerEl?.querySelector(".aircraft-marker");
+  if(el){
+    el.classList.toggle("selected",selected);
+    el.style.transform="rotate("+marker._targetHeading+"deg)";
+  }
+  const callout=markerEl?.querySelector(".selected-callsign");
+  if(callout)callout.textContent=String(f.callsign||f.username||"");
+  marker.setZIndexOffset(selected?10000:10);
   recordReplaySnapshot(f);
 }
 function animatePlanes(now){
