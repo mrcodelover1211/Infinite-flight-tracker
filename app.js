@@ -321,14 +321,30 @@ function renderTrafficList(){
 function renderFlights(){
   const validCount=visibleFlights.filter(validPos).length;
   const filterState=activeSearchTerm||activeFilters.aircraft||activeFilters.airport||activeFilters.phase!=="all"||activeFilters.minAlt!==null||activeFilters.maxAlt!==null||settings.connectedOnly||settings.callsignOnly;
-  $("summary").textContent=allFlights.length.toLocaleString()+" live · "+visibleFlights.length.toLocaleString()+" shown · "+validCount.toLocaleString()+" on map"+(filterState?" · filtered":"");
+  const renderLimit=maxRenderableFlights();
+  $("summary").textContent=allFlights.length.toLocaleString()+" live · "+visibleFlights.length.toLocaleString()+" shown · "+Math.min(validCount,renderLimit).toLocaleString()+" on map"+(validCount>renderLimit?" · performance mode":"")+(filterState?" · filtered":"");
   $("serverCounts").textContent=allFlights.length.toLocaleString();
+  const perf=selectedServer==="expert"&&performanceProfile()!=="high";
+  $("searchHint").textContent=perf
+    ?"Expert performance mode: showing the most important live aircraft to keep weaker devices smooth."
+    :$("searchHint").textContent;
 
   flightById.clear();
   for(const f of visibleFlights)flightById.set(String(f.flight_id||f.callsign),f);
 
   const active=new Set();
-  for(const f of visibleFlights){
+  const renderLimit=maxRenderableFlights();
+  const candidates=visibleFlights
+    .filter(validPos)
+    .slice()
+    .sort((x,y)=>{
+      const xs=(String(x.flight_id)===String(selectedFlight?.flight_id)||String(x.flight_id)===String(followingFlightId))?1:0;
+      const ys=(String(y.flight_id)===String(selectedFlight?.flight_id)||String(y.flight_id)===String(followingFlightId))?1:0;
+      return ys-xs;
+    })
+    .slice(0,renderLimit);
+
+  for(const f of candidates){
     if(!validPos(f))continue;
     const id=String(f.flight_id||f.callsign);
     active.add(id);
@@ -350,7 +366,11 @@ function renderFlights(){
     }
   }
 
-  if(!settings.trails){
+  const performanceMode=selectedServer==="expert"&&performanceProfile()!=="high";
+  if(performanceMode){
+    for(const l of trails.values())map.removeLayer(l);
+    trails.clear();
+  }else if(!settings.trails){
     for(const l of trails.values())map.removeLayer(l);
   }
 
