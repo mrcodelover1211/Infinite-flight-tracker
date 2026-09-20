@@ -220,9 +220,9 @@ body[data-device="phone"] .check-row{height:36px;font-size:10px}
 }
 
 .airport-tower-wrap{background:transparent!important;border:0!important;pointer-events:auto!important}
-.airport-tower{width:44px;height:44px;display:flex;align-items:center;justify-content:center;cursor:pointer;filter:drop-shadow(0 2px 3px #000b)}
-.airport-tower-hit{width:42px;height:42px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:rgba(18,67,112,.72);border:2px solid #fff;box-shadow:0 0 0 2px rgba(25,117,190,.65),0 2px 5px #000b}
-.airport-tower svg{width:28px;height:28px;fill:none;stroke:#fff;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+.airport-tower{width:30px;height:30px;display:flex;align-items:center;justify-content:center;cursor:pointer;filter:drop-shadow(0 2px 3px #000b)}
+.airport-tower-hit{width:30px;height:30px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:rgba(18,67,112,.78);border:1.5px solid #fff;box-shadow:0 0 0 1.5px rgba(25,117,190,.7),0 2px 4px #000b}
+.airport-tower svg{width:20px;height:20px;fill:none;stroke:#fff;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
 .airport-tower:hover .airport-tower-hit{background:#1976c2;box-shadow:0 0 0 3px #fff,0 2px 7px #000}
 .airport-flight-row{position:relative;padding-right:58px}
 .book-flight-btn{position:absolute;right:8px;top:50%;transform:translateY(-50%)}
