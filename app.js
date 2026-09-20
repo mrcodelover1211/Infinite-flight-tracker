@@ -733,7 +733,7 @@ function renderAircraftPhoto(box,photo){
     box.innerHTML='<div class="aircraft-photo-empty">No aircraft photo found.</div>';
     return;
   }
-  box.innerHTML='<img src="'+esc(photo.src)+'" alt="'+esc(photo.title)+'" loading="lazy" referrerpolicy="no-referrer"><div class="aircraft-photo-credit">'+(photo.verified?"✓ Verified model/livery match · ":"")+"Photo source: <a href="'+esc(photo.url)+'" target="_blank" rel="noopener noreferrer">'+esc(photo.source||photo.title)+'</a></div>';
+  box.innerHTML=`<img src="${esc(photo.src)}" alt="${esc(photo.title)}" loading="lazy" referrerpolicy="no-referrer"><div class="aircraft-photo-credit">${photo.verified?"✓ Verified model/livery match · ":""}Photo source: <a href="${esc(photo.url)}" target="_blank" rel="noopener noreferrer">${esc(photo.source||photo.title)}</a></div>`;
 }
 
 async function shareFlight(f){
