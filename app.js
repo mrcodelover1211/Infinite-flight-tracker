@@ -326,26 +326,64 @@ function createPlaneMarker(f){
   marker.on("dblclick",e=>{touch();L.DomEvent.stopPropagation(e);const x=flightById.get(id);if(x)followFlight(x)});
   marker.addTo(map); markers.set(id,marker); return marker;
 }
+function destinationPoint(lat,lon,bearingDeg,distanceNm){
+  if(![lat,lon,bearingDeg,distanceNm].every(Number.isFinite))return {lat,lon};
+  const radiusNm=3440.065;
+  const d=distanceNm/radiusNm;
+  const br=bearingDeg*Math.PI/180;
+  const p1=lat*Math.PI/180;
+  const l1=lon*Math.PI/180;
+  const sinP2=Math.sin(p1)*Math.cos(d)+Math.cos(p1)*Math.sin(d)*Math.cos(br);
+  const p2=Math.asin(clamp(sinP2,-1,1));
+  const y=Math.sin(br)*Math.sin(d)*Math.cos(p1);
+  const x=Math.cos(d)-Math.sin(p1)*Math.sin(p2);
+  const l2=l1+Math.atan2(y,x);
+  return {lat:clamp(p2*180/Math.PI,-89.9,89.9),lon:normLon(l2*180/Math.PI)};
+}
+
 function updatePlane(marker,f,selected){
   if(!validPos(f))return;
   const lat=clamp(Number(f.latitude),-85,85),lon=normLon(f.longitude),now=performance.now();
   const reportAt=reportEpoch(f.last_report);
-  marker._startLat=Number.isFinite(marker._lat)?marker._lat:lat;
-  marker._startLon=Number.isFinite(marker._lon)?marker._lon:lon;
-  marker._targetLat=lat; marker._targetLon=lon;
-  const interval=reportAt&&marker._reportedAt?reportAt-marker._reportedAt:POLL_MS;
-  marker._animStart=now;
-  marker._animDuration=clamp(interval||POLL_MS,1200,20000);
-  marker._animEnd=now+marker._animDuration;
-  marker._targetHeading=Number.isFinite(Number(f.heading_deg))?Number(f.heading_deg):Number(f.track_deg)||0;
+  const currentLat=Number.isFinite(marker._lat)?marker._lat:lat;
+  const currentLon=Number.isFinite(marker._lon)?marker._lon:lon;
+  const reportChanged=reportAt!=null && reportAt!==marker._reportedAt;
+
+  // Flight trackers do not wait for the next network packet to move an icon.
+  // Infinite Flight's public feed is correctly polled at 15 seconds, so between
+  // reports we use the last reported groundspeed/track for short dead-reckoning.
+  marker._startLat=currentLat;
+  marker._startLon=currentLon;
+  marker._targetLat=lat;
+  marker._targetLon=lon;
+  marker._speedKt=Number.isFinite(Number(f.speed_kt))?Math.max(0,Number(f.speed_kt)):0;
+  marker._trackDeg=Number.isFinite(Number(f.track_deg))?Number(f.track_deg):Number(f.heading_deg)||0;
+  marker._targetHeading=Number.isFinite(Number(f.heading_deg))?Number(f.heading_deg):marker._trackDeg;
   marker._selected=selected;
   marker._reportedAt=reportAt||marker._reportedAt||null;
+  marker._sampleReceivedAt=Date.now();
+  marker._reportAgeAtReceive=reportAt==null?Infinity:Math.max(0,(Date.now()-reportAt)/1000);
+  marker._blendStart=now;
+  marker._blendDuration=reportChanged?1200:600;
+
+  // If a packet arrived late, project it to "now" before blending. This keeps
+  // the aircraft from visibly snapping backwards whenever the API response
+  // contains a few seconds of network/server age.
+  if(reportAt!=null){
+    const age=clamp((Date.now()-reportAt)/1000,0,20);
+    const projected=destinationPoint(lat,lon,marker._trackDeg,marker._speedKt*age/3600);
+    marker._displayTargetLat=projected.lat;
+    marker._displayTargetLon=projected.lon;
+  }else{
+    marker._displayTargetLat=lat;
+    marker._displayTargetLon=lon;
+  }
+
   const iconKey=aircraftClass(f)+"|"+String(f.aircraft_type||"")+"|"+settings.planeSize+"|"+Math.floor(map.getZoom());
   if(marker._iconKey!==iconKey){
     marker.setIcon(planeIcon(f));
     marker._iconKey=iconKey;
   }
-  marker.setTooltipContent(labelForFlight(f));
   const markerEl=marker.getElement();
   const el=markerEl?.querySelector(".aircraft-marker");
   if(el){
@@ -359,17 +397,34 @@ function updatePlane(marker,f,selected){
 }
 function animatePlanes(now){
   for(const m of markers.values()){
-    if(!Number.isFinite(m._targetLat)||!Number.isFinite(m._targetLon))continue;
-    const duration=Math.max(1,m._animDuration||POLL_MS);
-    const p=clamp((now-(m._animStart||now))/duration,0,1);
-    const lat=(m._startLat??m._targetLat)+(m._targetLat-(m._startLat??m._targetLat))*p;
-    const lon=normLon((m._startLon??m._targetLon)+shortestLonDelta(m._startLon??m._targetLon,m._targetLon)*p);
+    if(!Number.isFinite(m._displayTargetLat)||!Number.isFinite(m._displayTargetLon))continue;
+
+    const elapsedSinceSample=Math.max(0,(Date.now()-(m._sampleReceivedAt||Date.now()))/1000);
+    const reportAge=m._reportAgeAtReceive===Infinity?elapsedSinceSample:m._reportAgeAtReceive+elapsedSinceSample;
+    const liveDeadReckon=Number.isFinite(m._speedKt)&&m._speedKt>1&&reportAge<=25;
+    const projectionSeconds=liveDeadReckon?clamp(reportAge,0,20):0;
+    const projected=liveDeadReckon
+      ?destinationPoint(m._targetLat,m._targetLon,m._trackDeg,m._speedKt*projectionSeconds/3600)
+      :{lat:m._targetLat,lon:m._targetLon};
+
+    const blendDuration=Math.max(1,m._blendDuration||800);
+    const blend=clamp((now-(m._blendStart||now))/blendDuration,0,1);
+    const blendLat=(m._startLat??m._displayTargetLat)+(m._displayTargetLat-(m._startLat??m._displayTargetLat))*blend;
+    const blendLon=normLon((m._startLon??m._displayTargetLon)+shortestLonDelta(m._startLon??m._displayTargetLon,m._displayTargetLon)*blend);
+
+    // After the short network-smoothing window, continue moving from the last
+    // reported position using its actual track and groundspeed. Freeze after
+    // 25 seconds of report age rather than inventing a long-range position.
+    const lat=blend<1?blendLat:projected.lat;
+    const lon=blend<1?blendLon:projected.lon;
     m.setLatLng([lat,lon]); m._lat=lat; m._lon=lon;
+
     const el=m.getElement()?.querySelector(".aircraft-marker");
     if(el){
       const start=Number.isFinite(m._heading)?m._heading:m._targetHeading;
       const delta=((m._targetHeading-start+540)%360)-180;
-      const currentHeading=start+delta*p;
+      const turnBlend=clamp((now-(m._blendStart||now))/Math.max(1,m._blendDuration||800),0,1);
+      const currentHeading=start+delta*turnBlend;
       m._heading=currentHeading;
       el.style.transform="rotate("+currentHeading+"deg)";
     }
