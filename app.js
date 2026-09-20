@@ -772,9 +772,11 @@ function renderAirport(d){
       const f=x.flight||{};
       const other=airportTab==="arrivals"?(x.origin?.identifier||"Unknown"):(x.destination?.identifier||"Unknown");
       return '<div class="flight-row airport-flight-row" data-flight="'+esc(f.flight_id||"")+'">'+
-        '<div class="flight-main"><strong>'+esc(f.callsign||"Unknown")+'</strong><span>'+esc(other)+'</span></div>'+
-        '<div class="flight-meta">'+esc(f.username||"")+" · "+esc(f.aircraft_type||"")+'</div>'+
-        (airportTab==="departures"?'<button class="small-btn book-flight-btn" data-book-flight="'+esc(f.flight_id||"")+'">Book</button>':"")+
+        '<div class="airport-flight-info">'+
+          '<div class="flight-main"><strong>'+esc(f.callsign||"Unknown")+'</strong><span>'+esc(other)+'</span></div>'+
+          '<div class="flight-meta">'+esc(f.username||"")+" · "+esc(f.aircraft_type||"")+'</div>'+
+        '</div>'+
+        (airportTab==="departures"?'<div class="airport-flight-action"><button class="small-btn book-flight-btn" data-book-flight="'+esc(f.flight_id||"")+'">Book</button></div>':"")+
       '</div>';
     }).join("")||'<div class="empty">No live flights returned.</div>');
 
@@ -893,14 +895,30 @@ function openBooking(f,airport){
   const origin=f.origin?.identifier||airport?.icao||"----";
   const dest=f.destination?.identifier||"----";
   const existingName=localStorage.getItem("ift_passenger_name")||"";
+  const saved=JSON.parse(localStorage.getItem("ift_booking_options")||"{}");
   $("bookingContent").innerHTML=
     '<div class="booking-card">'+
       '<div class="booking-route"><strong>'+esc(origin)+'</strong><span>→</span><strong>'+esc(dest)+'</strong></div>'+
-      '<div class="muted">'+esc(f.callsign||"Flight")+" · "+esc(f.aircraft_type||"Aircraft")+'</div>'+
+      '<div class="muted booking-flight-summary">'+esc(f.callsign||"Flight")+" · "+esc(f.aircraft_type||"Aircraft")+'</div>'+
       '<label class="booking-label">Passenger approved name<input id="passengerName" maxlength="40" value="'+esc(existingName)+'" placeholder="Enter passenger name"></label>'+
+      '<div class="booking-options-title">Booking options</div>'+
+      '<div class="booking-options-grid">'+
+        '<label class="booking-label">Cabin<select id="bookingCabin"><option value="Economy">Economy</option><option value="Premium Economy">Premium Economy</option><option value="Business">Business</option><option value="First">First</option></select></label>'+
+        '<label class="booking-label">Seat preference<select id="bookingSeatPref"><option value="Any">Any seat</option><option value="Window">Window</option><option value="Aisle">Aisle</option><option value="Middle">Middle</option></select></label>'+
+        '<label class="booking-label">Baggage<select id="bookingBaggage"><option value="Carry-on only">Carry-on only</option><option value="1 checked bag">1 checked bag</option><option value="2 checked bags">2 checked bags</option></select></label>'+
+        '<label class="booking-label">Meal<select id="bookingMeal"><option value="Standard">Standard</option><option value="Vegetarian">Vegetarian</option><option value="Halal">Halal</option><option value="No meal">No meal</option></select></label>'+
+      '</div>'+
+      '<label class="booking-check"><input id="bookingPriority" type="checkbox"> Priority boarding</label>'+
+      '<label class="booking-check"><input id="bookingWindow" type="checkbox"> Window seat request</label>'+
       '<button class="primary-btn" id="confirmBookingBtn">Confirm booking</button>'+
       '<div class="muted booking-note">This creates a tracker ticket only. It is not an Infinite Flight or real-world airline reservation.</div>'+
     '</div>';
+  $("bookingCabin").value=saved.cabin||"Economy";
+  $("bookingSeatPref").value=saved.seatPref||"Any";
+  $("bookingBaggage").value=saved.baggage||"Carry-on only";
+  $("bookingMeal").value=saved.meal||"Standard";
+  $("bookingPriority").checked=Boolean(saved.priority);
+  $("bookingWindow").checked=Boolean(saved.window);
   $("confirmBookingBtn").onclick=()=>confirmBooking(f,airport);
 }
 
@@ -922,6 +940,15 @@ function confirmBooking(f,airport){
   const name=$("passengerName").value.trim();
   if(!name){$("passengerName").focus();return;}
   localStorage.setItem("ift_passenger_name",name);
+  const options={
+    cabin:$("bookingCabin")?.value||"Economy",
+    seatPref:$("bookingSeatPref")?.value||"Any",
+    baggage:$("bookingBaggage")?.value||"Carry-on only",
+    meal:$("bookingMeal")?.value||"Standard",
+    priority:Boolean($("bookingPriority")?.checked),
+    window:Boolean($("bookingWindow")?.checked)
+  };
+  localStorage.setItem("ift_booking_options",JSON.stringify(options));
 
   const aircraft=String(f.aircraft_type||"Aircraft");
   const flightId=String(f.flight_id||"");
@@ -939,7 +966,8 @@ function confirmBooking(f,airport){
     seat,gate,
     time:depTime.toLocaleTimeString([], {hour:"2-digit",minute:"2-digit"}),
     date:depTime.toLocaleDateString(),
-    flightId
+    flightId,
+    ...options
   };
   localStorage.setItem("ift_ticket",JSON.stringify(ticket));
   closeBooking();
@@ -971,6 +999,10 @@ function renderTicket(ticket){
         '<div><small>TIME</small><b>'+esc(ticket.time)+'</b></div>'+
         '<div><small>GATE</small><b>'+esc(ticket.gate)+'</b></div>'+
         '<div><small>SEAT</small><b>'+esc(ticket.seat)+'</b></div>'+
+        '<div><small>CABIN</small><b>'+esc(ticket.cabin||"Economy")+'</b></div>'+
+        '<div><small>BAGGAGE</small><b>'+esc(ticket.baggage||"Carry-on only")+'</b></div>'+
+        '<div><small>MEAL</small><b>'+esc(ticket.meal||"Standard")+'</b></div>'+
+        '<div><small>BOARDING</small><b>'+esc(ticket.priority?"Priority":"Standard")+'</b></div>'+
       '</div>'+
       '<div class="ticket-bottom"><div><small>BOOKING</small><b>'+esc(ticket.code)+'</b><small>APPROVED PASSENGER: '+esc(ticket.name)+'</small></div>'+
       '<img class="ticket-qr" src="'+esc(qr)+'" alt="Ticket QR code"></div>'+
