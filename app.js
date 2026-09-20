@@ -478,8 +478,10 @@ async function loadAircraftPhoto(f){
   // unrelated pages. Only accept pages whose description clearly refers
   // to an aircraft/airliner/aviation subject and whose title is relevant.
   const aircraftNorm=aircraft.toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
-  const aircraftTokens=aircraftNorm.split(/\\s+/).filter(t=>t.length>=2);
+  const aircraftTokens=aircraftNorm.split(/\s+/).filter(t=>t.length>=2);
   const liveryNorm=livery.toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+  const modelMatch=aircraft.match(/(?:A\d{3}|B\d{3}|(?:737|747|757|767|777|787)(?:-?\d{2,4})?)/i);
+  const modelNorm=String(modelMatch?.[0]||"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
 
   const queries=[...new Set([
     [livery,aircraft].filter(Boolean).join(" "),
