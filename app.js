@@ -28,6 +28,7 @@ L.control.scale({imperial:true,metric:true}).addTo(map);
 
 const $=id=>document.getElementById(id);
 const markers=new Map();
+const aircraftPhotoCache=new Map();
 const airportMarkers=new Map();
 const atcMarkers=new Map();
 const trails=new Map();
@@ -421,7 +422,8 @@ function renderDetails(f){
   $("details").className="";
   $("details").innerHTML='<div class="card">'+
     '<div class="aircraft">'+esc(f.callsign||"Unknown flight")+'</div>'+
-    '<div class="chips"><span class="chip">'+esc(f.aircraft_type||"Unknown plane")+'</span><span class="chip">'+esc(f.livery_name||"Unknown livery")+'</span><span class="chip">'+esc(displayServer(selectedServer))+'</span></div>'+
+    '<div id="aircraftPhoto" class="aircraft-photo"><div class="aircraft-photo-loading">Loading aircraft photo…</div></div>'+
+    '<div class="chips"><span class="chip">'+esc(f.aircraft_type||"Unknown plane")+'</span><span class="chip">'+esc(f.livery_name||"Livery unavailable")+'</span><span class="chip">'+esc(displayServer(selectedServer))+'</span></div>'+
     '<div class="grid">'+
     '<div><div class="label">Pilot</div><div class="value">'+esc(f.username||"—")+'</div></div>'+
     '<div><div class="label">Flight ID</div><div class="value">'+esc(f.flight_id||"—")+'</div></div>'+
@@ -448,6 +450,51 @@ function renderDetails(f){
   $("shareBtn").onclick=()=>shareFlight(f);
   $("airportOriginBtn").onclick=()=>{touch();/^[A-Z0-9]{4}$/.test(origin)&&loadAirport(origin)};
   $("airportDestBtn").onclick=()=>{touch();/^[A-Z0-9]{4}$/.test(dest)&&loadAirport(dest)};
+  loadAircraftPhoto(f);
+}
+
+async function loadAircraftPhoto(f){
+  const box=$("aircraftPhoto");
+  if(!box)return;
+  const aircraft=String(f.aircraft_type||"aircraft").trim();
+  const livery=String(f.livery_name||"").trim();
+  const key=(aircraft+"|"+livery).toLowerCase();
+  if(aircraftPhotoCache.has(key)){
+    renderAircraftPhoto(box,aircraftPhotoCache.get(key));
+    return;
+  }
+  try{
+    const query=[livery,aircraft].filter(Boolean).join(" ");
+    const url="https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch="+encodeURIComponent(query)+"&gsrlimit=6&prop=pageimages|info&inprop=url&piprop=thumbnail&pilimit=6&pithumbsize=700&format=json&origin=*";
+    const r=await fetch(url,{cache:"force-cache"});
+    const d=await r.json();
+    const pages=Object.values(d.query?.pages||{})
+      .filter(p=>p?.thumbnail?.source)
+      .sort((a,b)=>{
+        const al=String(a.title||"").toLowerCase(), bl=String(b.title||"").toLowerCase();
+        const aq=aircraft.toLowerCase(), bq=aircraft.toLowerCase();
+        return Number(bl.includes(bq))-Number(al.includes(aq));
+      });
+    const photo=pages[0]?{
+      src:pages[0].thumbnail.source,
+      title:pages[0].title||aircraft,
+      url:pages[0].fullurl||("https://en.wikipedia.org/wiki/"+encodeURIComponent(pages[0].title||""))
+    }:null;
+    aircraftPhotoCache.set(key,photo);
+    renderAircraftPhoto(box,photo);
+  }catch{
+    aircraftPhotoCache.set(key,null);
+    renderAircraftPhoto(box,null);
+  }
+}
+
+function renderAircraftPhoto(box,photo){
+  if(!box)return;
+  if(!photo){
+    box.innerHTML='<div class="aircraft-photo-empty">No aircraft photo found.</div>';
+    return;
+  }
+  box.innerHTML='<img src="'+esc(photo.src)+'" alt="'+esc(photo.title)+'" loading="lazy" referrerpolicy="no-referrer"><div class="aircraft-photo-credit">Photo: <a href="'+esc(photo.url)+'" target="_blank" rel="noopener noreferrer">'+esc(photo.title)+'</a></div>';
 }
 
 async function shareFlight(f){
