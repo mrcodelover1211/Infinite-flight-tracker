@@ -237,6 +237,24 @@ function animatePlanes(now){
   animationFrame=requestAnimationFrame(animatePlanes);
 }
 
+function performanceProfile(){
+  const cores=Number(navigator.hardwareConcurrency||4);
+  const memory=Number(navigator.deviceMemory||4);
+  const phone=window.matchMedia("(max-width:600px)").matches;
+  const tablet=window.matchMedia("(max-width:1100px)").matches;
+  if(phone||cores<=2||memory<=2)return "low";
+  if(tablet||cores<=4||memory<=4)return "medium";
+  return "high";
+}
+
+function maxRenderableFlights(){
+  const p=performanceProfile();
+  if(selectedServer==="expert"){
+    return p==="low"?350:p==="medium"?650:1200;
+  }
+  return p==="low"?500:p==="medium"?900:1600;
+}
+
 function phase(f){
   const alt=Number(f.altitude_ft),vs=Number(f.vertical_speed_fpm),speed=Number(f.speed_kt);
   if(speed<40||alt<1000)return"ground";
