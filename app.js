@@ -272,7 +272,7 @@ function planePixelsForClass(kind){
   const base=settings.planeSize==="small"?10:settings.planeSize==="large"?15:12;
   const zoom=map.getZoom();
   const zoomMul=zoom<=3?.82:zoom<=4?.9:zoom>=9?1.06:1;
-  const mul={widebody:1.03,narrowbody:1.01,regional:1,turboprop:.97,helicopter:.98,military:1.02,general:.94,other:1}[kind]||1;
+  const mul={widebody:1.25,narrowbody:1.08,regional:.95,turboprop:.82,helicopter:.9,military:1.05,general:.78,other:.9}[kind]||.9;
   return clamp(Math.round(base*zoomMul*mul),8,18);
 }
 function planeIcon(f){
