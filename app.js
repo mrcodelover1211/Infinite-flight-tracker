@@ -189,8 +189,18 @@ function aircraftClass(f){
   if(/\b(cessna|cirrus|piper|diamond|tbm|sr ?2[02]|pa ?[0-9]+|gulfstream|citation|learjet|phenom|pc ?24|pilatus|bonanza|mooney|glider)\b/.test(raw))return"general";
   return"other";
 }
-function aircraftIconSvg(kind){
+function aircraftIconSvg(kind,model=""){
   const base='<svg viewBox="0 0 32 32" aria-hidden="true">';
+  const raw=String(model||"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+  // Model-specific silhouettes first. The fallback below still covers every
+  // aircraft family, but recognizable high-traffic types get their own shape.
+  if(/md 11|dc 10/.test(raw))return base+'<path d="M29 14.2 18.6 11V4.2c0-.9-.7-1.6-1.6-1.6h-2.4c-.9 0-1.6.7-1.6 1.6V11L3 14.2c-.9.3-1.5 1.1-1.5 2.1v1c0 .7.6 1.3 1.3 1.3h9.9v4.1l-3.4 2.5c-.5.4-.8 1-.8 1.6v.5c0 .5.5.8 1 .7l4.8-1.8 2.3-3.3 2.3 3.3 4.8 1.8c.5.2 1-.2 1-.7v-.5c0-.7-.3-1.3-.8-1.6l-3.4-2.5v-4.1h9.9c.7 0 1.3-.6 1.3-1.3v-1c0-1-.6-1.8-1.5-2.1Z"/></svg>';
+  if(/747/.test(raw))return base+'<path d="M29 14.3 18.5 11V5.1c0-.9-.7-1.6-1.6-1.6h-2.1c-.9 0-1.6.7-1.6 1.6V11L3 14.3c-.9.3-1.5 1.1-1.5 2v1c0 .7.6 1.3 1.3 1.3h10v4l-3.1 2.2c-.6.4-.8 1-.8 1.7v.5c0 .5.5.8 1 .7l4.7-1.7 1.3-3.1 1.3 3.1 4.7 1.7c.5.2 1-.2 1-.7v-.5c0-.7-.3-1.3-.8-1.7L18 22.6v-4h10c.7 0 1.3-.6 1.3-1.3v-1c0-.9-.6-1.7-1.3-2Z"/></svg>';
+  if(/a 380|a380/.test(raw))return base+'<path d="M28.8 14.2 18 10.9V4.3c0-.9-.7-1.6-1.6-1.6h-1.8c-.9 0-1.6.7-1.6 1.6v6.6L3.2 14.2c-.9.3-1.5 1.1-1.5 2v1c0 .7.6 1.3 1.3 1.3h10v4.2l-3 2.1c-.5.4-.8 1-.8 1.6v.5c0 .5.5.8 1 .7l5-1.7 5 1.7c.5.2 1-.2 1-.7v-.5c0-.6-.3-1.2-.8-1.6l-3-2.1v-4.2h10c.7 0 1.3-.6 1.3-1.3v-1c0-.9-.6-1.7-1.4-2Z"/><path d="M9 18.2h14v1.5H9z" opacity=".35"/></svg>';
+  if(/a 350|a350|787|777|a 330|a330/.test(raw))return base+'<path d="M28.7 14.3 18.2 11V4.3c0-.9-.7-1.6-1.6-1.6h-1.9c-.9 0-1.6.7-1.6 1.6V11L3.3 14.3c-.9.3-1.5 1.1-1.5 2v1c0 .7.6 1.3 1.3 1.3h10v4.1l-3.1 2.2c-.5.4-.8 1-.8 1.6v.5c0 .5.5.8 1 .7l4.6-1.7 4.6 1.7c.5.2 1-.2 1-.7v-.5c0-.6-.3-1.2-.8-1.6l-3.1-2.2v-4.1h10c.7 0 1.3-.6 1.3-1.3v-1c0-.9-.6-1.7-1.4-2Z"/></svg>';
+  if(/a 320|a320|a 321|a321|a 319|a319|a 318|a318|a 220|a220|737|757|717|727/.test(raw))return base+'<path d="M28 14.7 17.5 11.2V5c0-.8-.6-1.5-1.5-1.5h-2c-.8 0-1.5.7-1.5 1.5v6.2L4 14.7c-.8.3-1.3 1-1.3 1.8v.8c0 .6.5 1.1 1.1 1.1h8.7v4.1l-2.7 1.9c-.5.3-.7.8-.7 1.4v.4c0 .4.4.7.8.6l4.6-1.4 4.6 1.4c.4.1.8-.2.8-.6v-.4c0-.6-.3-1.1-.7-1.4l-2.7-1.9v-4.1h8.7c.6 0 1.1-.5 1.1-1.1v-.8c0-.8-.5-1.5-1.3-1.8Z"/></svg>';
+  if(/crj|e 170|e170|e 175|e175|e 190|e190|e 195|e195|erj/.test(raw))return base+'<path d="M27.5 14.8 17.2 11.3V5.2c0-.8-.6-1.4-1.4-1.4h-1.6c-.8 0-1.4.6-1.4 1.4v6.1L4.5 14.8c-.8.3-1.2 1-1.2 1.8v.7c0 .6.5 1 1 1h8.6v4.2l-2.5 1.7c-.5.3-.7.8-.7 1.3v.4c0 .4.4.7.8.6l4.7-1.3 4.7 1.3c.4.1.8-.2.8-.6v-.4c0-.5-.3-1-.7-1.3l-2.5-1.7v-4.2h8.6c.6 0 1-.4 1-1v-.7c0-.8-.4-1.5-1.2-1.8Z"/></svg>';
+  if(/atr|dash 8|dh8|caravan|c 208|c208|king air/.test(raw))return base+'<path d="M26.8 14.9 17.1 11.6V5.5c0-.8-.6-1.4-1.4-1.4h-1.4c-.8 0-1.4.6-1.4 1.4v6.1L5.2 14.9c-.8.3-1.2.9-1.2 1.7v.6c0 .5.4.9 1 .9h7.9v4.1l-2.3 1.6c-.4.3-.6.7-.6 1.2v.4c0 .4.4.6.8.5l4.2-1.2 4.2 1.2c.4.1.8-.1.8-.5V25c0-.5-.2-.9-.6-1.2L17.1 22v-4.1h7.9c.6 0 1-.4 1-.9v-.6c0-.7-.4-1.4-1.2-1.7Z"/><circle cx="9" cy="16.5" r="1.7" fill="none" stroke="currentColor" stroke-width="1.2"/><circle cx="23" cy="16.5" r="1.7" fill="none" stroke="currentColor" stroke-width="1.2"/></svg>';
   if(kind==="widebody")return base+'<path d="M29 14.1 18.8 11V4.2c0-.9-.7-1.6-1.6-1.6h-2.4c-.9 0-1.6.7-1.6 1.6V11L3 14.1c-.9.3-1.5 1.1-1.5 2.1v1.1c0 .7.6 1.3 1.3 1.3h10.4v4.4l-3.2 2.3c-.6.4-.9 1-.9 1.7v.5c0 .5.5.9 1 .7l5.1-1.8 5.1 1.8c.5.2 1-.2 1-.7v-.5c0-.7-.3-1.3-.9-1.7l-3.2-2.3v-4.4h10.4c.7 0 1.3-.6 1.3-1.3v-1.1c0-1-.6-1.8-1.5-2.1Z"/><path d="M8 18.3h16v2H8z" opacity=".25"/>'+'</svg>';
   if(kind==="regional")return base+'<path d="M27 14.5 17.2 11V5c0-.8-.6-1.4-1.4-1.4h-1.6c-.8 0-1.4.6-1.4 1.4v6l-9.8 3.5c-.8.3-1.3 1-1.3 1.8v.8c0 .6.5 1.1 1.1 1.1H12v4.3l-2.8 2c-.5.3-.8.9-.8 1.4v.5c0 .4.4.7.8.6l5.8-1.7 5.8 1.7c.4.1.8-.2.8-.6v-.5c0-.6-.3-1.1-.8-1.4l-2.8-2v-4.3H27c.6 0 1.1-.5 1.1-1.1v-.8c0-.8-.5-1.5-1.1-1.8Z"/>'+'</svg>';
   if(kind==="turboprop")return base+'<path d="M27.5 14.7 17.3 11V5.2c0-.8-.6-1.4-1.4-1.4h-1.4c-.8 0-1.4.6-1.4 1.4V11L4.1 14.7c-.8.3-1.3 1-1.3 1.8v.7c0 .6.5 1 1 1h8.9v4.5l-2.5 1.8c-.5.3-.7.8-.7 1.3v.5c0 .4.4.7.8.5l4.9-1.5 4.9 1.5c.4.1.8-.1.8-.5v-.5c0-.5-.3-1-.7-1.3l-2.5-1.8v-4.5h8.9c.6 0 1-.4 1-1v-.7c0-.8-.5-1.5-1.3-1.8Z"/><circle cx="9.2" cy="15.9" r="2.2" fill="none" stroke="currentColor" stroke-width="1.4"/><circle cx="22.8" cy="15.9" r="2.2" fill="none" stroke="currentColor" stroke-width="1.4"/>'+'</svg>';
@@ -273,7 +283,7 @@ function planePixelsForClass(kind){
 }
 function planeIcon(f){
   const kind=aircraftClass(f||{}),px=planePixelsForClass(kind);
-  return L.divIcon({className:"",html:'<div class="aircraft-marker type-'+kind+'" style="--plane-size:'+px+'px">'+aircraftIconSvg(kind)+'</div>',iconSize:[px,px],iconAnchor:[px/2,px/2]});
+  return L.divIcon({className:"",html:'<div class="aircraft-marker type-'+kind+'" style="--plane-size:'+px+'px">'+aircraftIconSvg(kind,f?.aircraft_type)+'</div>',iconSize:[px,px],iconAnchor:[px/2,px/2]});
 }
 function refreshPlaneIcons(){
   for(const [id,marker] of markers){const f=flightById.get(id);if(f)marker.setIcon(planeIcon(f));}
