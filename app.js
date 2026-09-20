@@ -249,6 +249,11 @@ function validPos(f){
   const lat=Number(f.latitude),lon=normLon(f.longitude);
   return Number.isFinite(lat)&&lat>=-85&&lat<=85&&Number.isFinite(lon);
 }
+function isInMapViewport(f){
+  if(!validPos(f))return false;
+  const bounds=map.getBounds();
+  return bounds.contains([Number(f.latitude),normLon(f.longitude)]);
+}
 function shortestLonDelta(a,b){let d=b-a;if(d>180)d-=360;if(d<-180)d+=360;return d}
 
 const planeSvg='<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.5 11.1 14 8.2V3.7c0-.7-.5-1.2-1.2-1.2h-1.6c-.7 0-1.2.5-1.2 1.2v4.5l-7.5 2.9c-.6.2-1 .8-1 1.4v.7c0 .5.4.9.9.9H10v3.7l-2.4 1.5c-.4.2-.6.7-.6 1.1v.5c0 .4.4.7.8.6l4.1-1.2 4.1 1.2c.4.1.8-.2.8-.6v-.5c0-.5-.2-.9-.6-1.1L14 17.8v-3.7h7.6c.5 0 .9-.4.9-.9v-.7c0-.6-.4-1.2-1-1.4Z"/></svg>';
@@ -447,7 +452,7 @@ function renderFlights(){
   const active=new Set();
   const renderLimit=maxRenderableFlights();
   const candidates=visibleFlights
-    .filter(validPos)
+    .filter(f=>validPos(f)&&isInMapViewport(f))
     .slice()
     .sort((x,y)=>{
       const xs=(String(x.flight_id)===String(selectedFlight?.flight_id)||String(x.flight_id)===String(followingFlightId))?1:0;
@@ -464,7 +469,7 @@ function renderFlights(){
     let marker=markers.get(id);
     if(!marker)marker=createPlaneMarker(f);
     updatePlane(marker,f,selected);
-    if(settings.trails&&selected)updateTrail(id,f,true);
+    // Selected flights show their actual flight plan, not a generic breadcrumb trail.
   }
 
   for(const [id,m] of markers){
@@ -539,6 +544,7 @@ function selectFlight(f){
     trailHistory.delete(oldId);
   }
   selectedFlight=f;
+  clearRoute();
   renderFlights();
 }
 
@@ -591,7 +597,6 @@ function renderDetails(f){
     '</div>'+
     '<div class="detail-actions">'+
       '<button class="small-btn" id="followBtn">'+(followingFlightId===String(f.flight_id)?"Stop following":"Follow")+'</button>'+
-      '<button class="small-btn" id="routeBtn">Route</button>'+
       '<button class="small-btn" id="replayBtn">Replay</button>'+
       '<button class="small-btn" id="nearbyBtn">Nearby</button>'+
       '<button class="small-btn favorite-btn '+(favorite?"active":"")+'" id="favoriteBtn">'+(favorite?"★ Favorited":"☆ Favorite")+'</button>'+
@@ -605,7 +610,6 @@ function renderDetails(f){
   '</div>';
 
   $("followBtn").onclick=()=>{touch();followingFlightId===String(f.flight_id)?stopFollowing():followFlight(f)};
-  $("routeBtn").onclick=()=>{touch();drawRoute(f)};
   $("replayBtn").onclick=()=>openReplay(f);
   $("nearbyBtn").onclick=()=>{touch();if(validPos(f))map.setView([Number(f.latitude),normLon(f.longitude)],Math.max(map.getZoom(),7),{animate:false});};
   $("favoriteBtn").onclick=()=>{touch();toggleFavorite(f)};
@@ -621,6 +625,7 @@ async function loadAircraftPhoto(f){
   if(!box)return;
   const flightKey=String(f.flight_id||"");
   if(box.dataset.flightId!==flightKey)return;
+
   const aircraft=String(f.aircraft_type||"aircraft").trim();
   const livery=String(f.livery_name||"").trim();
   const key=(aircraft+"|"+livery).toLowerCase();
@@ -629,85 +634,86 @@ async function loadAircraftPhoto(f){
     return;
   }
 
-  // Wikipedia search results can contain people, accidents, and other
-  // unrelated pages. Only accept pages whose description clearly refers
-  // to an aircraft/airliner/aviation subject and whose title is relevant.
-  const aircraftNorm=aircraft.toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+  const norm=s=>String(s||"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+  const aircraftNorm=norm(aircraft);
+  const liveryNorm=norm(livery);
   const aircraftTokens=aircraftNorm.split(/\s+/).filter(t=>t.length>=2);
-  const liveryNorm=livery.toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
   const modelMatch=aircraft.match(/(?:A\d{3}|B\d{3}|(?:737|747|757|767|777|787)(?:-?\d{2,4})?)/i);
-  const modelNorm=String(modelMatch?.[0]||"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+  const modelNorm=norm(modelMatch?.[0]||aircraft);
 
+  // Two independent public image indexes are checked. We only accept an image
+  // when the text metadata gives strong evidence for both the aircraft model
+  // and the operator/livery. A wrong picture is worse than no picture.
   const queries=[...new Set([
     [livery,aircraft].filter(Boolean).join(" "),
-    aircraft,
+    [aircraft,livery].filter(Boolean).join(" "),
     aircraft+" aircraft",
-    aircraft+" airliner"
+    livery+" aircraft"
   ].filter(Boolean))];
 
+  const sourceQueries=[
+    {source:"Wikipedia",base:"https://en.wikipedia.org/w/api.php"},
+    {source:"Wikimedia Commons",base:"https://commons.wikimedia.org/w/api.php"}
+  ];
+
+  const aircraftWords=/\b(aircraft|airliner|airplane|aeroplane|aviation|jet|helicopter|airliner)\b/i;
+  const badWords=/\b(person|politician|actor|actress|terrorist|militant|criminal|footballer|singer|writer|president|minister|general)\b/i;
+
   try{
-    let candidates=[];
-    for(const query of queries){
-      const url="https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch="+
-        encodeURIComponent(query)+
-        "&gsrlimit=10&prop=pageimages|pageterms|info&inprop=url&piprop=thumbnail&pilimit=10&pithumbsize=700&wbptterms=description&format=json&origin=*";
-      const r=await fetch(url,{cache:"force-cache"});
-      const d=await r.json();
-      candidates.push(...Object.values(d.query?.pages||{}));
-      if(candidates.length>=10)break;
+    const candidates=[];
+    for(const src of sourceQueries){
+      for(const query of queries){
+        const url=src.base+"?action=query&generator=search&gsrsearch="+
+          encodeURIComponent(query)+
+          "&gsrlimit=10&prop=pageimages|pageterms|info&inprop=url&piprop=thumbnail&pilimit=10&pithumbsize=900&wbptterms=description&format=json&origin=*";
+        const r=await fetch(url,{cache:"force-cache"});
+        if(!r.ok)continue;
+        const d=await r.json();
+        for(const p of Object.values(d.query?.pages||{})){
+          if(p?.thumbnail?.source)candidates.push({...p,_source:src.source});
+        }
+        if(candidates.length>=30)break;
+      }
     }
 
-    const aircraftWords=/\b(aircraft|airliner|airplane|aeroplane|aviation|jet|helicopter|airliner)\b/i;
-    const humanWords=/\b(person|politician|actor|actress|pilot|terrorist|militant|criminal|footballer|singer|writer|president|minister|general)\b/i;
+    const scored=candidates.map(p=>{
+      const title=String(p.title||"");
+      const description=String(p.terms?.description?.[0]||"");
+      const text=(title+" "+description).toLowerCase();
+      const titleNorm=norm(title);
+      let score=0;
+      const modelEvidence=modelNorm && titleNorm.includes(modelNorm);
+      const liveryEvidence=!liveryNorm || titleNorm.includes(liveryNorm) || text.includes(liveryNorm);
 
-    const scored=candidates
-      .filter(p=>p?.thumbnail?.source)
-      .map(p=>{
-        const title=String(p.title||"");
-        const description=String(p.terms?.description?.[0]||"");
-        const text=(title+" "+description).toLowerCase();
-        const titleNorm=text.replace(/[^a-z0-9]+/g," ");
-        let score=0;
+      if(modelEvidence)score+=14;
+      else if(aircraftTokens.some(t=>titleNorm.includes(t)))score+=3;
+      if(liveryNorm&&liveryEvidence)score+=12;
+      if(aircraftWords.test(description))score+=6;
+      if(badWords.test(description)||badWords.test(title))score-=40;
+      if(/\b(747|737|777|787|a3[0-9]{2}|a220|a330|a340|a350|a380|md[- ]?11|md[- ]?80|crj|embraer|e170|e175|e190|e195|atr|dash)\b/i.test(text))score+=3;
 
-        if(aircraftWords.test(description))score+=8;
-        if(humanWords.test(description))score-=20;
-        if(aircraftTokens.some(t=>titleNorm.includes(t)))score+=3;
-        if(aircraftNorm&&titleNorm.includes(aircraftNorm))score+=10;
-        if(modelNorm&&titleNorm.includes(modelNorm))score+=7;
-        if(liveryNorm&&titleNorm.includes(liveryNorm))score+=5;
-        if(/\b(747|737|777|787|a3[0-9]{2}|a220|a330|a340|a350|a380|md[- ]?11|md[- ]?80|crj|embraer|e170|e175|e190|e195|atr|dash|concorde)\b/i.test(text))score+=4;
-
-        return {p,score,description};
-      })
-      .filter(x=>x.score>=7 && !humanWords.test(x.description))
-      .sort((a,b)=>b.score-a.score);
+      // If an operator/livery is known, require explicit evidence for it.
+      // For generic/no-livery aircraft, model evidence alone is acceptable.
+      const verified=Boolean(modelEvidence && (!liveryNorm || liveryEvidence) && !badWords.test(description) && !badWords.test(title));
+      return {p,score,verified,description};
+    }).filter(x=>x.verified&&x.score>=24).sort((a,b)=>b.score-a.score);
 
     const best=scored[0]?.p;
+    const bestScore=scored[0]?.score||0;
     const photo=best?{
       src:best.thumbnail.source,
       title:best.title||aircraft,
-      url:best.fullurl||("https://en.wikipedia.org/wiki/"+encodeURIComponent(best.title||""))
+      url:best.fullurl||("https://en.wikipedia.org/wiki/"+encodeURIComponent(best.title||"")),
+      source:best._source,
+      verified:true,
+      score:bestScore
     }:null;
 
     aircraftPhotoCache.set(key,photo);
     if(box.dataset.flightId===flightKey)renderAircraftPhoto(box,photo);
   }catch{
-    try{
-      const fallbackUrl="https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch="+
-        encodeURIComponent(aircraft+" aircraft")+
-        "&gsrlimit=8&prop=imageinfo|info&iiprop=url&iiurlwidth=900&format=json&origin=*";
-      const rr=await fetch(fallbackUrl,{cache:"no-store"});
-      const dd=await rr.json();
-      const pages=Object.values(dd.query?.pages||{});
-      const best=pages.find(p=>p?.imageinfo?.[0]?.thumburl||p?.imageinfo?.[0]?.url);
-      const info=best?.imageinfo?.[0];
-      const photo=best&&info?{src:info.thumburl||info.url,title:best.title||aircraft,url:info.descriptionurl||info.url}:null;
-      aircraftPhotoCache.set(key,photo);
-      if(box.dataset.flightId===flightKey)renderAircraftPhoto(box,photo);
-    }catch{
-      aircraftPhotoCache.set(key,null);
-      renderAircraftPhoto(box,null);
-    }
+    aircraftPhotoCache.set(key,null);
+    renderAircraftPhoto(box,null);
   }
 }
 
@@ -717,7 +723,7 @@ function renderAircraftPhoto(box,photo){
     box.innerHTML='<div class="aircraft-photo-empty">No aircraft photo found.</div>';
     return;
   }
-  box.innerHTML='<img src="'+esc(photo.src)+'" alt="'+esc(photo.title)+'" loading="lazy" referrerpolicy="no-referrer"><div class="aircraft-photo-credit">Photo: <a href="'+esc(photo.url)+'" target="_blank" rel="noopener noreferrer">'+esc(photo.title)+'</a></div>';
+  box.innerHTML='<img src="'+esc(photo.src)+'" alt="'+esc(photo.title)+'" loading="lazy" referrerpolicy="no-referrer"><div class="aircraft-photo-credit">'+(photo.verified?"✓ Verified model/livery match · ":"")+"Photo source: <a href="'+esc(photo.url)+'" target="_blank" rel="noopener noreferrer">'+esc(photo.source||photo.title)+'</a></div>';
 }
 
 async function shareFlight(f){
@@ -743,6 +749,7 @@ async function loadFlightDetail(f){
     if(r.ok&&d.flight){
       selectedFlight={...f,...d.flight};
       renderDetails(selectedFlight);
+      drawRoute(selectedFlight);
     }
   }catch{}
 }
@@ -1893,7 +1900,13 @@ document.querySelectorAll("input,button").forEach(el=>{
 
 map.getContainer().classList.toggle("labels-hidden",!settings.labels);
 
-map.on("moveend zoomend",()=>{touch();if(airportsVisible)renderWorld();if(settings.density)renderDensity();if(settings.daynight)renderDayNight();});
+map.on("moveend zoomend",()=>{
+  touch();
+  renderFlights();
+  if(airportsVisible)renderWorld();
+  if(settings.density)renderDensity();
+  if(settings.daynight)renderDayNight();
+});
 map.on("dragstart zoomstart wheel",()=>{lastInteractionAt=Date.now()});
 
 document.addEventListener("visibilitychange",()=>{
