@@ -66,6 +66,7 @@ let replayTimer=0;
 let replayIndex=0;
 let globeInstance=null;
 let globeScriptPromise=null;
+let mapMode="2d";
 const sessionFavorites=new Set();
 
 const settings={
@@ -1258,6 +1259,7 @@ function loadScript(src){
 }
 async function openGlobe(){
   touch();
+  mapMode="3d";
   document.querySelectorAll("#mapModePicker button").forEach(b=>b.classList.toggle("active",b.dataset.mapMode==="3d"));
   $("globeOverlay").classList.remove("hidden");
   $("globeOverlay").setAttribute("aria-hidden","false");
@@ -1296,6 +1298,7 @@ async function openGlobe(){
 function closeGlobe(){
   $("globeOverlay").classList.add("hidden");
   $("globeOverlay").setAttribute("aria-hidden","true");
+  mapMode="2d";
   document.querySelectorAll("#mapModePicker button").forEach(b=>b.classList.toggle("active",b.dataset.mapMode==="2d"));
 }
 
@@ -1803,6 +1806,7 @@ function setAtc(enabled){
 
 function setMapMode(mode){
   if(mode==="3d"){openGlobe();return;}
+  mapMode="2d";
   closeGlobe();
   map.invalidateSize({animate:false});
   renderFlights();
@@ -1810,7 +1814,7 @@ function setMapMode(mode){
 function openSettings(){
   touch();
   syncDraftFilterUI();
-  document.querySelectorAll("#mapModePicker button").forEach(b=>b.classList.toggle("active",b.dataset.mapMode===("2d")));
+  document.querySelectorAll("#mapModePicker button").forEach(b=>b.classList.toggle("active",b.dataset.mapMode===mapMode));
 
   $("settingsOverlay").classList.remove("hidden");
   $("settingsOverlay").setAttribute("aria-hidden","false");
@@ -1919,6 +1923,7 @@ $("airportBtn").onclick=openAirportSearch;
 $("fitBtn").onclick=fitAircraft;
 $("randomBtn").onclick=randomFlight;
 $("worldTopBtn").onclick=worldView;
+$("map3dTopBtn").onclick=()=>{touch();setMapMode("3d")};
 $("refreshBtn").onclick=()=>{touch();load()};
 $("settingsBtn").onclick=openSettings;
 $("statsBtn").onclick=openStats;
