@@ -895,6 +895,256 @@ function toggleAirports(force){
   loadWorld().catch(e=>error(e.message));
 }
 
+
+function updateLayerOverlays(){
+  if(settings.daynight)renderDayNight(); else clearDayNight();
+  if(settings.density)renderDensity(); else clearDensity();
+  if(settings.rings&&selectedFlight)renderRangeRings(selectedFlight);
+}
+function clearDensity(){densityLayers.forEach(l=>map.removeLayer(l));densityLayers=[];}
+function renderDensity(){
+  clearDensity();
+  if(!settings.density)return;
+  const cells=new Map();
+  const z=map.getZoom();
+  const step=z<4?8:z<6?4:2;
+  visibleFlights.filter(validPos).forEach(f=>{
+    const lat=Number(f.latitude),lon=normLon(f.longitude);
+    const key=Math.floor((lat+90)/step)+":"+Math.floor((lon+180)/step);
+    const cell=cells.get(key)||{lat:0,lon:0,count:0};
+    cell.lat+=lat;cell.lon+=lon;cell.count++;
+    cells.set(key,cell);
+  });
+  cells.forEach(cell=>{
+    if(cell.count<2)return;
+    const lat=cell.lat/cell.count,lon=cell.lon/cell.count;
+    const radius=clamp(cell.count*14000,25000,170000);
+    densityLayers.push(L.circle([lat,lon],{
+      radius,weight:0,fillColor:"#ffb84d",fillOpacity:clamp(cell.count/45,.08,.32),interactive:false
+    }).addTo(map));
+  });
+}
+
+function solarSubpoint(){
+  const now=new Date();
+  const start=Date.UTC(now.getUTCFullYear(),0,0);
+  const day=(Date.UTC(now.getUTCFullYear(),now.getUTCMonth(),now.getUTCDate())-start)/86400000;
+  const gamma=2*Math.PI/365*(day-1+(now.getUTCHours()-12)/24);
+  const decl=0.006918-0.399912*Math.cos(gamma)+0.070257*Math.sin(gamma)-0.006758*Math.cos(2*gamma)+0.000907*Math.sin(2*gamma)-0.002697*Math.cos(3*gamma)+0.00148*Math.sin(3*gamma);
+  const eot=229.18*(0.000075+0.001868*Math.cos(gamma)-0.032077*Math.sin(gamma)-0.014615*Math.cos(2*gamma)-0.040849*Math.sin(2*gamma));
+  const minutes=now.getUTCHours()*60+now.getUTCMinutes()+now.getUTCSeconds()/60;
+  return {lon:normLon(-((minutes+eot)/4-180)),decl:decl*180/Math.PI};
+}
+function clearDayNight(){if(dayNightLayer){map.removeLayer(dayNightLayer);dayNightLayer=null;}}
+function renderDayNight(){
+  clearDayNight();
+  if(!settings.daynight)return;
+  const s=solarSubpoint();
+  const west=[],east=[];
+  for(let lat=85;lat>=-85;lat-=2){
+    const phi=lat*Math.PI/180,dec=s.decl*Math.PI/180;
+    const angle=Math.acos(clamp(-Math.tan(phi)*Math.tan(dec),-1,1))*180/Math.PI;
+    west.push([lat,normLon(s.lon-angle)]);
+    east.unshift([lat,normLon(s.lon+angle)]);
+  }
+  const nightA=west.concat([[ -85,normLon(s.lon+180) ],[85,normLon(s.lon+180)]]);
+  dayNightLayer=L.polygon(nightA,{stroke:false,fillColor:"#000",fillOpacity:.24,interactive:false,noClip:false}).addTo(map);
+}
+
+function clearRangeRings(){
+  rangeRingLayers.forEach(l=>map.removeLayer(l));
+  rangeRingLayers=[];
+}
+function renderRangeRings(f){
+  clearRangeRings();
+  if(!settings.rings||!validPos(f))return;
+  const center=[Number(f.latitude),normLon(f.longitude)];
+  [25,50,100,200].forEach(nm=>{
+    rangeRingLayers.push(L.circle(center,{
+      radius:nm*1852,color:"#a7bfd3",weight:1,opacity:.45,fill:false,dashArray:"4 6",interactive:false
+    }).addTo(map));
+  });
+}
+function toggleRangeRings(f){
+  touch();
+  settings.rings=!settings.rings;
+  document.querySelector('[data-setting="rings"]')?.classList.toggle("active",settings.rings);
+  if(settings.rings)renderRangeRings(f||selectedFlight); else clearRangeRings();
+}
+
+function toggleFavorite(f){
+  const id=String(f?.flight_id||"");
+  if(!id)return;
+  if(sessionFavorites.has(id))sessionFavorites.delete(id); else sessionFavorites.add(id);
+  if(selectedFlight)renderDetails(selectedFlight);
+  renderTrafficList();
+}
+
+async function refreshWeatherLayer(){
+  if(weatherLayer){map.removeLayer(weatherLayer);weatherLayer=null;}
+  if(!settings.weather){$("weatherCredit").classList.add("hidden");return;}
+  try{
+    const r=await fetch("https://api.rainviewer.com/public/weather-maps.json",{cache:"no-store"});
+    const d=await r.json();
+    const frame=d?.radar?.past?.at(-1);
+    if(!frame?.path||!d?.host)throw new Error("Weather radar is unavailable.");
+    const size=window.devicePixelRatio>=2?512:256;
+    weatherLayer=L.tileLayer(d.host+frame.path+"/"+size+"/{z}/{x}/{y}/2/1_1.png",{
+      tileSize:256,opacity:.55,maxNativeZoom:7,maxZoom:12,attribution:"Weather by RainViewer"
+    }).addTo(map);
+    $("weatherCredit").classList.remove("hidden");
+  }catch(e){
+    settings.weather=false;
+    document.querySelector('[data-setting="weather"]')?.classList.remove("active");
+    error(e.message||"Weather radar is unavailable.");
+  }
+}
+
+function openFleet(){
+  touch();
+  const rows=visibleFlights.filter(validPos).slice().sort((a,b)=>{
+    const aw=(a.callsign?1:0)+(a.virtual_organization?1:0)+(String(a.livery_name||"")?1:0);
+    const bw=(b.callsign?1:0)+(b.virtual_organization?1:0)+(String(b.livery_name||"")?1:0);
+    return bw-aw;
+  }).slice(0,35);
+  $("fleetContent").innerHTML='<div class="fleet-table">'+
+    (rows.map(f=>{
+      const id=String(f.flight_id||"");
+      return '<div class="fleet-row"><strong>'+esc(f.callsign||labelForFlight(f))+'</strong><span>'+esc(f.aircraft_type||"Aircraft")+'</span><span>'+num(f.altitude_ft)+' ft</span><span class="fleet-speed">'+num(f.speed_kt)+' kt</span><span class="fleet-phase">'+esc((f.origin?.identifier||"----")+" → "+(f.destination?.identifier||"----"))+'</span><button class="small-btn" data-fleet-flight="'+esc(id)+'">Open</button></div>';
+    }).join("")||'<div class="empty">No live aircraft available.</div>')+
+    '</div>';
+  document.querySelectorAll("[data-fleet-flight]").forEach(btn=>btn.onclick=()=>{
+    const f=visibleFlights.find(x=>String(x.flight_id)===btn.dataset.fleetFlight);
+    if(f){closeFleet();focusFlight(f);}
+  });
+  $("fleetOverlay").classList.remove("hidden");
+  $("fleetOverlay").setAttribute("aria-hidden","false");
+}
+function closeFleet(){
+  $("fleetOverlay").classList.add("hidden");
+  $("fleetOverlay").setAttribute("aria-hidden","true");
+}
+
+function updateStatsBreakdown(){
+  const top=(key,limit=6)=>{
+    const m=new Map();
+    visibleFlights.forEach(f=>{const k=String(key(f)||"Unknown").trim()||"Unknown";m.set(k,(m.get(k)||0)+1);});
+    return [...m.entries()].sort((a,b)=>b[1]-a[1]).slice(0,limit);
+  };
+  const bands=new Map();
+  visibleFlights.forEach(f=>{
+    const a=Number(f.altitude_ft);
+    const band=!Number.isFinite(a)||a<1000?"Ground":a<10000?"<10k":a<20000?"10–20k":a<30000?"20–30k":a<40000?"30–40k":"40k+";
+    bands.set(band,(bands.get(band)||0)+1);
+  });
+  const card=(title,rows)=>'<div class="breakdown-card"><h4>'+esc(title)+'</h4>'+
+    rows.map(([name,count])=>'<div class="rank-row"><span>'+esc(name)+'</span><b>'+count+'</b></div>').join("")+
+    '</div>';
+  $("statsBreakdown").innerHTML='<div class="stats-breakdown-grid">'+
+    card("Aircraft types",top(f=>f.aircraft_type))+
+    card("Virtual airlines",top(f=>f.virtual_organization))+
+    card("Flight phases",top(f=>phase(f)))+
+    card("Altitude bands",[...bands.entries()].sort((a,b)=>b[1]-a[1]))+
+    '</div>';
+}
+
+function openReplay(f){
+  touch();
+  const id=String(f?.flight_id||"");
+  const points=replayBuffer.get(id)||[];
+  $("replayOverlay").classList.remove("hidden");
+  $("replayOverlay").setAttribute("aria-hidden","false");
+  replayIndex=Math.max(0,points.length-1);
+  renderReplay(f);
+}
+function closeReplay(){
+  $("replayOverlay").classList.add("hidden");
+  $("replayOverlay").setAttribute("aria-hidden","true");
+  if(replayTimer)clearInterval(replayTimer);
+  replayTimer=0;
+  if(replayMarker){map.removeLayer(replayMarker);replayMarker=null;}
+  if(replayRoute){map.removeLayer(replayRoute);replayRoute=null;}
+}
+function renderReplay(f){
+  const points=replayBuffer.get(String(f?.flight_id||""))||[];
+  if(!points.length){
+    $("replayContent").innerHTML='<div class="replay-empty">Replay is building from live refreshes. Keep the flight live while the tracker records snapshots.</div>';
+    return;
+  }
+  replayIndex=clamp(replayIndex,0,points.length-1);
+  const p=points[replayIndex];
+  const route=points.slice(0,replayIndex+1).map(x=>[x.lat,x.lon]);
+  if(replayMarker)replayMarker.setLatLng([p.lat,p.lon]);
+  else replayMarker=L.circleMarker([p.lat,p.lon],{radius:6,color:"#ffd43b",fillColor:"#ffd43b",fillOpacity:.95,weight:2,interactive:false}).addTo(map);
+  if(replayRoute)replayRoute.setLatLngs(route);
+  else replayRoute=L.polyline(route,{weight:2,opacity:.6,color:"#ffd43b",dashArray:"4 5",interactive:false}).addTo(map);
+  const first=points[0],last=points[points.length-1];
+  $("replayContent").innerHTML='<div class="muted">'+esc(f.callsign||labelForFlight(f))+' · '+esc(f.aircraft_type||"Aircraft")+'</div>'+
+    '<input class="replay-range" id="replayRange" type="range" min="0" max="'+(points.length-1)+'" value="'+replayIndex+'">'+
+    '<div class="replay-metric-grid">'+
+      '<div class="replay-metric"><span>Report</span><b>'+new Date(p.t).toLocaleTimeString()+'</b></div>'+
+      '<div class="replay-metric"><span>Altitude</span><b>'+num(p.alt)+' ft</b></div>'+
+      '<div class="replay-metric"><span>Speed</span><b>'+num(p.speed)+' kt</b></div>'+
+      '<div class="replay-metric"><span>Vertical speed</span><b>'+num(p.vs)+' fpm</b></div>'+
+    '</div>'+
+    '<div class="replay-actions"><button class="small-btn" id="replayBack">‹ Step</button><button class="small-btn" id="replayPlay">'+(replayTimer?"Pause":"Play")+'</button><button class="small-btn" id="replayForward">Step ›</button><button class="small-btn" id="replayFit">Fit track</button></div>'+
+    '<div class="progress-caption"><span>'+new Date(first.t).toLocaleTimeString()+'</span><span>'+points.length+' reports · in memory only</span><span>'+new Date(last.t).toLocaleTimeString()+'</span></div>';
+  $("replayRange").oninput=e=>{replayIndex=Number(e.target.value);renderReplay(f);};
+  $("replayBack").onclick=()=>{replayIndex=Math.max(0,replayIndex-1);renderReplay(f);};
+  $("replayForward").onclick=()=>{replayIndex=Math.min(points.length-1,replayIndex+1);renderReplay(f);};
+  $("replayPlay").onclick=()=>{
+    if(replayTimer){clearInterval(replayTimer);replayTimer=0;renderReplay(f);return;}
+    replayTimer=setInterval(()=>{
+      replayIndex++;
+      if(replayIndex>=points.length){clearInterval(replayTimer);replayTimer=0;replayIndex=points.length-1;}
+      renderReplay(f);
+    },500);
+  };
+  $("replayFit").onclick=()=>{map.fitBounds(L.latLngBounds(points.map(x=>[x.lat,x.lon])),{padding:[35,35],maxZoom:8,animate:false});};
+}
+
+function loadScript(src){
+  return new Promise((resolve,reject)=>{
+    const exists=[...document.scripts].find(s=>s.src===src);
+    if(exists){if(window.Globe)resolve();else{exists.addEventListener("load",resolve,{once:true});exists.addEventListener("error",reject,{once:true});}return;}
+    const script=document.createElement("script");
+    script.src=src;script.async=true;script.onload=resolve;script.onerror=reject;document.head.appendChild(script);
+  });
+}
+async function openGlobe(){
+  touch();
+  $("globeOverlay").classList.remove("hidden");
+  $("globeOverlay").setAttribute("aria-hidden","false");
+  $("globeStatus").textContent="Loading 3D globe…";
+  try{
+    if(!window.Globe){
+      globeScriptPromise ||= loadScript("https://unpkg.com/globe.gl@2.45.4/dist/globe.gl.min.js");
+      await globeScriptPromise;
+    }
+    if(!globeInstance){
+      globeInstance=Globe()($("globeContainer"))
+        .globeImageUrl("https://unpkg.com/three-globe/example/img/earth-night.jpg")
+        .backgroundImageUrl("https://unpkg.com/three-globe/example/img/night-sky.png")
+        .pointLat(d=>Number(d.latitude))
+        .pointLng(d=>normLon(d.longitude))
+        .pointAltitude(d=>Math.max(.01,Math.min(.22,Number(d.altitude_ft||0)/250000)))
+        .pointRadius(d=>Math.max(.12,Math.min(.55,Number(d.speed_kt||0)/1200)))
+        .pointColor(()=>"#ffd43b")
+        .pointLabel(d=>esc((d.callsign||labelForFlight(d))+" · "+(d.aircraft_type||"Aircraft")))
+        .atmosphereAltitude(.12);
+    }
+    globeInstance.pointsData(allFlights.filter(validPos));
+    $("globeStatus").textContent=allFlights.length.toLocaleString()+" live aircraft";
+  }catch{
+    $("globeStatus").textContent="Globe unavailable";
+    error("3D globe could not load. The normal tracker is still live.");
+  }
+}
+function closeGlobe(){
+  $("globeOverlay").classList.add("hidden");
+  $("globeOverlay").setAttribute("aria-hidden","true");
+}
+
 function closeAirportPanel(){
   $("airportPanel").classList.add("hidden");
   $("airportPanel").innerHTML="";
@@ -1187,6 +1437,7 @@ async function load(){
     if(d.simulated===true)throw new Error("Backend returned simulated data.");
 
     allFlights=(Array.isArray(d.flights)?d.flights:[]).map(f=>({...f,search_blob:searchBlob(f)}));
+    allFlights.forEach(recordReplaySnapshot);
     if(d.session?.name){
       syncServerUI(String(d.session.name).toLowerCase());
     }else{
@@ -1376,6 +1627,7 @@ function closeSettings(){
 function openStats(){
   touch();
   updateLiveStats();
+  updateStatsBreakdown();
   $("statsOverlay").classList.remove("hidden");
   $("statsOverlay").setAttribute("aria-hidden","false");
 }
@@ -1443,6 +1695,10 @@ document.querySelectorAll("[data-setting]").forEach(b=>{
     if(name==="trails")setTrails(enabled);
     if(name==="labels")setLabels(enabled);
     if(name==="atc")setAtc(enabled);
+    if(name==="density"){settings.density=enabled;renderDensity();}
+    if(name==="daynight"){settings.daynight=enabled;renderDayNight();}
+    if(name==="rings"){settings.rings=enabled;if(enabled)renderRangeRings(selectedFlight);else clearRangeRings();}
+    if(name==="weather"){settings.weather=enabled;refreshWeatherLayer();}
   };
 });
 
@@ -1469,6 +1725,8 @@ $("worldTopBtn").onclick=worldView;
 $("refreshBtn").onclick=()=>{touch();load()};
 $("settingsBtn").onclick=openSettings;
 $("statsBtn").onclick=openStats;
+$("fleetBtn").onclick=openFleet;
+$("layersBtn").onclick=openSettings;
 
 $("settingsSearchBtn").onclick=()=>{
   closeSettings();
@@ -1486,6 +1744,10 @@ $("settingsAirportMapBtn").onclick=()=>{
   const enabled=!airportsVisible;
   toggleAirports(enabled);
 };
+$("settingsLayersBtn").onclick=()=>{closeSettings();openSettings();};
+$("settingsFleetBtn").onclick=()=>{closeSettings();openFleet();};
+$("settingsReplayBtn").onclick=()=>{closeSettings();selectedFlight?openReplay(selectedFlight):error("Select a flight first.");};
+$("settingsGlobeBtn").onclick=()=>{closeSettings();openGlobe();};
 $("settingsLabelsBtn").onclick=()=>setLabels(!settings.labels);
 $("settingsAtcBtn").onclick=()=>setAtc(!settings.atc);
 $("settingsTrailsBtn").onclick=()=>setTrails(!settings.trails);
@@ -1501,13 +1763,23 @@ $("fitSettingsBtn").onclick=()=>{closeSettings();fitAircraft()};
 $("randomSettingsBtn").onclick=()=>{closeSettings();randomFlight()};
 $("clearSelectionBtn").onclick=()=>{touch();selectedFlight=null;followingFlightId=null;renderFlights();$("details").className="empty";$("details").textContent="Select an aircraft on the map."};
 $("clearRouteBtn").onclick=()=>{touch();clearRoute()};
+$("nearbyFlightBtn").onclick=()=>{touch();if(selectedFlight&&validPos(selectedFlight))map.setView([Number(selectedFlight.latitude),normLon(selectedFlight.longitude)],Math.max(map.getZoom(),7),{animate:false});};
+$("rangeRingsBtn").onclick=()=>toggleRangeRings(selectedFlight);
+$("favoriteFlightBtn").onclick=()=>{if(selectedFlight)toggleFavorite(selectedFlight);else error("Select a flight first.");};
+$("replaySelectedBtn").onclick=()=>{closeSettings();selectedFlight?openReplay(selectedFlight):error("Select a flight first.");};
 $("copyFlightBtn").onclick=copySelectedFlight;
 
 $("settingsClose").onclick=closeSettings;
 $("statsClose").onclick=closeStats;
+$("fleetClose").onclick=closeFleet;
+$("replayClose").onclick=closeReplay;
+$("globeClose").onclick=closeGlobe;
 
 $("settingsOverlay").onclick=e=>{if(e.target===$("settingsOverlay"))closeSettings()};
 $("statsOverlay").onclick=e=>{if(e.target===$("statsOverlay"))closeStats()};
+$("fleetOverlay").onclick=e=>{if(e.target===$("fleetOverlay"))closeFleet()};
+$("replayOverlay").onclick=e=>{if(e.target===$("replayOverlay"))closeReplay()};
+$("globeOverlay").onclick=e=>{if(e.target===$("globeOverlay"))closeGlobe()};
 
 $("bookingClose").onclick=closeBooking;
 $("ticketClose").onclick=closeTicket;
@@ -1548,6 +1820,9 @@ document.addEventListener("keydown",e=>{
   if(e.key==="Escape"){
     closeSettings();
     closeStats();
+    closeFleet();
+    closeReplay();
+    closeGlobe();
   }
 });
 
@@ -1558,7 +1833,7 @@ document.querySelectorAll("input,button").forEach(el=>{
 
 map.getContainer().classList.toggle("labels-hidden",!settings.labels);
 
-map.on("moveend zoomend",()=>{touch();if(airportsVisible)renderWorld()});
+map.on("moveend zoomend",()=>{touch();if(airportsVisible)renderWorld();if(settings.density)renderDensity();if(settings.daynight)renderDayNight();});
 map.on("dragstart zoomstart wheel",()=>{lastInteractionAt=Date.now()});
 
 document.addEventListener("visibilitychange",()=>{
