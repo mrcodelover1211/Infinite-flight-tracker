@@ -596,9 +596,9 @@ function drawRoute(f){
 function airportTowerIcon(){
   return L.divIcon({
     className:"airport-tower-wrap",
-    html:'<div class="airport-tower" aria-label="Airport">▥</div>',
-    iconSize:[12,12],
-    iconAnchor:[6,6]
+    html:'<div class="airport-tower" aria-label="Airport"><svg viewBox="0 0 20 20"><path d="M3 18h14M5 18V7h10v11M4 7l6-5 6 5M7 10h2v2H7zm4 0h2v2h-2zm-4 4h2v2H7zm4 0h2v2h-2z"/></svg></div>',
+    iconSize:[16,16],
+    iconAnchor:[8,8]
   });
 }
 
@@ -607,7 +607,11 @@ function renderWorld(){
   clearWorld();
 
   const zoom=map.getZoom();
-  const airports=(worldData.airports||[]).filter(a=>Number.isFinite(Number(a.latitude))&&Number.isFinite(Number(a.longitude)));
+  const bounds=map.getBounds().pad(0.18);
+  const airports=(worldData.airports||[]).filter(a=>{
+    const lat=Number(a.latitude),lon=normLon(a.longitude);
+    return Number.isFinite(lat)&&Number.isFinite(lon)&&bounds.contains([lat,lon]);
+  });
 
   for(const a of airports){
     const lat=Number(a.latitude),lon=normLon(a.longitude);
