@@ -495,6 +495,8 @@ function renderFlights(){
   }
 
   renderTrafficList();
+  updateLayerOverlays();
+  $("settingsDataQuality").textContent=dataQualityScore();
 }
 
 function updateTrail(id,f,selected){
@@ -556,34 +558,53 @@ function stopFollowing(){
 function renderDetails(f){
   const dest=f.destination?.identifier||f.destination?.name||"Unknown";
   const origin=f.origin?.identifier||f.origin?.name||"Unknown";
+  const prog=Number.isFinite(Number(f.progress_pct))?clamp(Number(f.progress_pct),0,100):null;
+  const next=f.next_waypoint;
+  const status=flightStatus(f);
+  const nearby=nearestNeighborFlights(f,8);
+  const favorite=sessionFavorites.has(String(f.flight_id));
   $("details").className="";
   $("details").innerHTML='<div class="card">'+
-    '<div class="aircraft">'+esc(f.callsign||"Unknown flight")+'</div>'+
+    '<div class="detail-header"><div><div class="aircraft">'+esc(f.callsign||labelForFlight(f)||"Unknown flight")+'</div><div class="muted">'+esc(f.aircraft_type||"Unknown plane")+' · '+esc(f.livery_name||"Livery unavailable")+'</div></div>'+addStatusBadge(f)+'</div>'+
     '<div id="aircraftPhoto" class="aircraft-photo"><div class="aircraft-photo-loading">Loading aircraft photo…</div></div>'+
-    '<div class="chips"><span class="chip">'+esc(f.aircraft_type||"Unknown plane")+'</span><span class="chip">'+esc(f.livery_name||"Livery unavailable")+'</span><span class="chip">'+esc(displayServer(selectedServer))+'</span></div>'+
+    '<div class="chips"><span class="chip">'+esc(displayServer(selectedServer))+'</span><span class="chip">'+esc(f.virtual_organization||"No VA")+'</span><span class="chip">'+esc(aircraftClass(f))+'</span><span class="chip">'+esc(phase(f))+'</span></div>'+
+    '<div class="progress-wrap"><div class="progress-track"><div class="progress-fill" style="width:'+(prog==null?0:prog)+'%"></div></div><div class="progress-caption"><span>'+esc(origin)+'</span><b>'+(prog==null?"—":prog.toFixed(1)+"%")+'</b><span>'+esc(dest)+'</span></div></div>'+
+    '<div class="waypoint-next"><div class="label">NEXT WAYPOINT</div><b>'+esc(next?.identifier||next?.name||"Unavailable")+'</b><div class="mono">'+(f.distance_to_next_nm==null?"—":num(f.distance_to_next_nm,1)+" NM")+' · ETA '+(next?.eta_minutes==null?"—":num(next.eta_minutes)+" min")+(f.cross_track_nm==null?"":" · XTK "+num(f.cross_track_nm,1)+" NM")+'</div></div>'+
     '<div class="grid">'+
     '<div><div class="label">Pilot</div><div class="value">'+esc(f.username||"—")+'</div></div>'+
     '<div><div class="label">Flight ID</div><div class="value">'+esc(f.flight_id||"—")+'</div></div>'+
-    '<div><div class="label">Height</div><div class="value">'+num(f.altitude_ft)+' ft</div></div>'+
-    '<div><div class="label">Speed</div><div class="value">'+num(f.speed_kt)+' kt</div></div>'+
-    '<div><div class="label">Heading</div><div class="value">'+num(f.heading_deg)+'°</div></div>'+
+    '<div><div class="label">Altitude</div><div class="value">'+num(f.altitude_ft)+' ft</div></div>'+
+    '<div><div class="label">Ground speed</div><div class="value">'+num(f.speed_kt)+' kt</div></div>'+
+    '<div><div class="label">Heading / track</div><div class="value">'+num(f.heading_deg)+'° / '+num(f.track_deg)+'°</div></div>'+
     '<div><div class="label">Vertical speed</div><div class="value">'+num(f.vertical_speed_fpm)+' fpm</div></div>'+
-    '<div><div class="label">Route</div><div class="value">'+esc(origin)+' → '+esc(dest)+'</div></div>'+
-    '<div><div class="label">Phase</div><div class="value">'+esc(phase(f))+'</div></div>'+
+    '<div><div class="label">Route remaining</div><div class="value">'+(f.route_distance_remaining_nm==null?"—":num(f.route_distance_remaining_nm,1)+" NM")+'</div></div>'+
+    '<div><div class="label">ETA</div><div class="value">'+(f.eta_minutes==null?"—":num(f.eta_minutes)+" min")+'</div></div>'+
+    '<div><div class="label">Pilot state</div><div class="value">'+esc(f.pilot_state??"—")+'</div></div>'+
+    '<div><div class="label">Connection</div><div class="value">'+(f.connected===true?"Connected":f.connected===false?"Disconnected":"Unknown")+'</div></div>'+
     '<div class="wide"><div class="label">Position</div><div class="value">'+num(f.latitude,4)+', '+num(f.longitude,4)+'</div></div>'+
-    '<div class="wide"><div class="label">Last report</div><div class="value">'+esc(f.last_report||"—")+'</div></div>'+
+    '<div class="wide"><div class="label">Last report</div><div class="value">'+esc(f.last_report||"—")+' · '+(Number.isFinite(dataAgeSeconds(f))?Math.round(dataAgeSeconds(f))+"s old":"age unknown")+'</div></div>'+
     '</div>'+
     '<div class="detail-actions">'+
       '<button class="small-btn" id="followBtn">'+(followingFlightId===String(f.flight_id)?"Stop following":"Follow")+'</button>'+
       '<button class="small-btn" id="routeBtn">Route</button>'+
+      '<button class="small-btn" id="replayBtn">Replay</button>'+
+      '<button class="small-btn" id="nearbyBtn">Nearby</button>'+
+      '<button class="small-btn favorite-btn '+(favorite?"active":"")+'" id="favoriteBtn">'+(favorite?"★ Favorited":"☆ Favorite")+'</button>'+
+      '<button class="small-btn" id="ringsBtn">Range rings</button>'+
       '<button class="small-btn" id="shareBtn">Share</button>'+
       '<button class="small-btn" id="airportOriginBtn">'+esc(origin)+'</button>'+
       '<button class="small-btn" id="airportDestBtn">'+esc(dest)+'</button>'+
     '</div>'+
+    '<div class="detail-section-title">Nearby traffic · 100 NM</div>'+
+    '<div id="nearbyTraffic">'+(nearby.map(x=>'<div class="nearby-row"><div class="nearby-main"><strong>'+esc(x.callsign||labelForFlight(x))+'</strong><span>'+esc(x.aircraft_type||"Aircraft")+' · '+num(x.altitude_ft)+' ft · '+num(x.speed_kt)+' kt</span></div><span class="chip">'+num(x._distance_nm,1)+' NM</span></div>').join("")||'<div class="muted">No nearby aircraft.</div>')+'</div>'+
   '</div>';
 
   $("followBtn").onclick=()=>{touch();followingFlightId===String(f.flight_id)?stopFollowing():followFlight(f)};
   $("routeBtn").onclick=()=>{touch();drawRoute(f)};
+  $("replayBtn").onclick=()=>openReplay(f);
+  $("nearbyBtn").onclick=()=>{touch();if(validPos(f))map.setView([Number(f.latitude),normLon(f.longitude)],Math.max(map.getZoom(),7),{animate:false});};
+  $("favoriteBtn").onclick=()=>{touch();toggleFavorite(f)};
+  $("ringsBtn").onclick=()=>toggleRangeRings(f);
   $("shareBtn").onclick=()=>shareFlight(f);
   $("airportOriginBtn").onclick=()=>{touch();/^[A-Z0-9]{4}$/.test(origin)&&loadAirport(origin)};
   $("airportDestBtn").onclick=()=>{touch();/^[A-Z0-9]{4}$/.test(dest)&&loadAirport(dest)};
@@ -719,26 +740,41 @@ async function loadFlightDetail(f){
   }catch{}
 }
 
+function splitRoutePoints(points){
+  const clean=points.filter(p=>Number.isFinite(p[0])&&Number.isFinite(p[1]));
+  if(!clean.length)return[];
+  const out=[],seg=[clean[0]];
+  for(let i=1;i<clean.length;i++){
+    if(Math.abs(clean[i][1]-clean[i-1][1])>180){
+      if(seg.length>1)out.push(seg.slice());
+      seg.length=0;seg.push(clean[i]);
+    }else seg.push(clean[i]);
+  }
+  if(seg.length>1)out.push(seg.slice());
+  return out;
+}
 function drawRoute(f){
   clearRoute();
-  const pts=(f.route||[])
-    .map(p=>[Number(p.latitude),normLon(p.longitude)])
-    .filter(p=>Number.isFinite(p[0])&&Number.isFinite(p[1]));
-  if(!pts.length){
-    error("No route is available for this flight.");
-    return;
-  }
-  const clean=[];
-  let seg=[pts[0]];
-  for(let i=1;i<pts.length;i++){
-    if(Math.abs(pts[i][1]-pts[i-1][1])>180){
-      if(seg.length>1)clean.push(seg);
-      seg=[pts[i]];
-    }else seg.push(pts[i]);
-  }
-  if(seg.length>1)clean.push(seg);
-  for(const part of clean)routeLayers.push(L.polyline(part,{weight:3,opacity:.65,color:"#ffd43b"}).addTo(map));
-  map.fitBounds(L.latLngBounds(pts),{padding:[40,40],maxZoom:7,animate:false});
+  const planned=(f.plan_waypoints||[]).map(p=>[Number(p.latitude),normLon(p.longitude)]);
+  const actual=(f.route||[]).map(p=>[Number(p.latitude),normLon(p.longitude)]);
+  const plannedParts=splitRoutePoints(planned);
+  const actualParts=splitRoutePoints(actual);
+  for(const part of plannedParts)routeLayers.push(L.polyline(part,{weight:3,opacity:.72,color:"#d08cff",dashArray:"7 6",interactive:false}).addTo(map));
+  for(const part of actualParts)routeLayers.push(L.polyline(part,{weight:2.2,opacity:.58,color:"#ffd43b",interactive:false}).addTo(map));
+  (f.plan_waypoints||[]).slice(0,120).forEach((w,i)=>{
+    const lat=Number(w.latitude),lon=normLon(w.longitude);
+    if(!Number.isFinite(lat)||!Number.isFinite(lon))return;
+    const m=L.circleMarker([lat,lon],{
+      radius:i===0||i===f.plan_waypoints.length-1?4:3,
+      weight:1,color:"#fff",fillColor:"#d08cff",fillOpacity:.92,interactive:false
+    });
+    const eta=f.waypoint_eta?.find(x=>String(x.identifier||"")===String(w.identifier||""))?.eta_minutes;
+    m.bindTooltip(String(w.identifier||w.name||("WP "+(i+1)))+" · ETA "+(eta==null?"—":num(eta)+" min"),{direction:"top"});
+    routeLayers.push(m.addTo(map));
+  });
+  const boundsPoints=planned.length?planned:actual;
+  if(!boundsPoints.length){error("No route or flight plan is available for this flight.");return;}
+  map.fitBounds(L.latLngBounds(boundsPoints),{padding:[40,40],maxZoom:8,animate:false});
 }
 
 function airportIconForZoom(a){
