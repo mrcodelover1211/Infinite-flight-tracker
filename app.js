@@ -1058,7 +1058,22 @@ function updateStatsBreakdown(){
     card("Virtual airlines",top(f=>f.virtual_organization))+
     card("Flight phases",top(f=>phase(f)))+
     card("Altitude bands",[...bands.entries()].sort((a,b)=>b[1]-a[1]))+
+    (worldData?.airports?.length?card("Busiest airports",worldData.airports.map(a=>[String(a.icao||"----")+" · "+String(a.name||"Airport"),(Number(a.inbound_count)||0)+(Number(a.outbound_count)||0)]).sort((a,b)=>b[1]-a[1]).slice(0,6)):'' )+
     '</div>';
+}
+
+
+function sparkline(values,label){
+  const nums=values.filter(Number.isFinite);
+  if(nums.length<2)return '<div class="replay-chart"><div class="label">'+esc(label)+'</div><div class="muted">Not enough reports.</div></div>';
+  const min=Math.min(...nums),max=Math.max(...nums),span=max-min||1;
+  const w=320,h=70,pad=5;
+  const points=nums.map((v,i)=>{
+    const x=pad+(w-pad*2)*(i/(nums.length-1));
+    const y=h-pad-(h-pad*2)*((v-min)/span);
+    return x.toFixed(1)+','+y.toFixed(1);
+  }).join(' ');
+  return '<div class="replay-chart"><div class="label">'+esc(label)+'</div><svg viewBox="0 0 '+w+' '+h+'" role="img" aria-label="'+esc(label)+'"><polyline fill="none" stroke="currentColor" stroke-width="2" points="'+points+'"></polyline></svg><div class="progress-caption"><span>Min '+num(min,0)+'</span><span>Max '+num(max,0)+'</span></div></div>';
 }
 
 function openReplay(f){
@@ -1099,6 +1114,11 @@ function renderReplay(f){
       '<div class="replay-metric"><span>Altitude</span><b>'+num(p.alt)+' ft</b></div>'+
       '<div class="replay-metric"><span>Speed</span><b>'+num(p.speed)+' kt</b></div>'+
       '<div class="replay-metric"><span>Vertical speed</span><b>'+num(p.vs)+' fpm</b></div>'+
+    '</div>'+
+    '<div class="replay-chart-grid">'+
+      sparkline(points.map(x=>x.alt),"Altitude (ft)")+
+      sparkline(points.map(x=>x.speed),"Speed (kt)")+
+      sparkline(points.map(x=>x.vs),"Vertical speed (fpm)")+
     '</div>'+
     '<div class="replay-actions"><button class="small-btn" id="replayBack">‹ Step</button><button class="small-btn" id="replayPlay">'+(replayTimer?"Pause":"Play")+'</button><button class="small-btn" id="replayForward">Step ›</button><button class="small-btn" id="replayFit">Fit track</button></div>'+
     '<div class="progress-caption"><span>'+new Date(first.t).toLocaleTimeString()+'</span><span>'+points.length+' reports · in memory only</span><span>'+new Date(last.t).toLocaleTimeString()+'</span></div>';
@@ -1221,6 +1241,10 @@ function renderAirport(d){
   const routeHtml=topRoutes.length
     ?'<div class="airport-route-network"><div class="detail-section-title">Live route network</div>'+topRoutes.map(r=>'<span class="layer-chip">'+esc(r[0])+' · '+r[1]+'</span>').join(" ")+'</div>'
     :"";
+  const atcRows=(worldData?.atc||[]).filter(x=>String(x.airport||"").toUpperCase().includes(String(a.icao||"").toUpperCase())||String(x.airport||"").toUpperCase()===String(a.name||"").toUpperCase()).slice(0,8);
+  const atcHtml=atcRows.length
+    ?'<div class="airport-atc"><div class="detail-section-title">ATC on field</div>'+atcRows.map(x=>'<div class="nearby-row"><div class="nearby-main"><strong>'+esc(x.username||"Unknown controller")+'</strong><span>'+esc(x.type||"ATC")+'</span></div></div>').join("")+'</div>'
+    :'<div class="airport-atc"><div class="detail-section-title">ATC on field</div><div class="muted">No active ATC facility was returned for this airport.</div></div>';
   $("airportPanel").innerHTML='<div class="airport-title">'+esc(a.icao||"Airport")+'</div>'+
     '<div class="muted">'+esc(a.name||"")+'</div>'+
     '<div class="airport-location">'+esc(airportInfo||"Location unavailable")+'</div>'+
@@ -1229,6 +1253,7 @@ function renderAirport(d){
     '<div class="tabs"><button id="arrivalsTab" class="'+(airportTab==="arrivals"?"active":"")+'">Arrivals ('+(d.inbound_count??0)+')</button>'+
     '<button id="departuresTab" class="'+(airportTab==="departures"?"active":"")+'">Departures ('+(d.outbound_count??0)+')</button></div>'+
     routeHtml+
+    atcHtml+
     (rowHtml||'<div class="empty">No live flights returned.</div>');
   $("arrivalsTab").onclick=()=>{touch();airportTab="arrivals";loadAirport(a.icao)};
   $("departuresTab").onclick=()=>{touch();airportTab="departures";loadAirport(a.icao)};
