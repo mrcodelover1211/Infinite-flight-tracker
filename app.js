@@ -590,7 +590,7 @@ function renderDetails(f){
   const favorite=sessionFavorites.has(String(f.flight_id));
   $("details").className="";
   $("details").innerHTML='<div class="card">'+
-    '<div class="detail-header"><div><div class="aircraft">'+esc(f.callsign||labelForFlight(f)||"Unknown flight")+'</div><div class="muted">'+esc(f.aircraft_type||"Unknown plane")+' · '+esc(f.livery_name||"Livery unavailable")+'</div></div>'+addStatusBadge(f)+'</div>'+
+    '<div class="detail-header"><div><div class="aircraft">'+esc(f.callsign||labelForFlight(f)||"Unknown flight")+'</div><div class="muted">'+esc(f.aircraft_type||"Unknown plane")+' · '+esc(f.livery_name||"Livery unavailable")+(f.livery_source==="operator_inference"?' · inferred':'')+'</div></div>'+addStatusBadge(f)+'</div>'+
     '<div id="aircraftPhoto" class="aircraft-photo" data-flight-id="'+esc(String(f.flight_id||""))+'"><div class="aircraft-photo-loading">Loading aircraft photo…</div></div>'+
     '<div class="chips"><span class="chip">'+esc(displayServer(selectedServer))+'</span><span class="chip">'+esc(f.virtual_organization||"No VA")+'</span><span class="chip">'+esc(aircraftClass(f))+'</span><span class="chip">'+esc(phase(f))+'</span></div>'+
     '<div class="progress-wrap"><div class="progress-track"><div class="progress-fill" style="width:'+(prog==null?0:prog)+'%"></div></div><div class="progress-caption"><span>'+esc(origin)+'</span><b>'+(prog==null?"—":prog.toFixed(1)+"%")+'</b><span>'+esc(dest)+'</span></div></div>'+
