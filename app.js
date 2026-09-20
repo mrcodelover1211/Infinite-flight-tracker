@@ -481,10 +481,12 @@ async function loadAircraftPhoto(f){
   const aircraftTokens=aircraftNorm.split(/\\s+/).filter(t=>t.length>=2);
   const liveryNorm=livery.toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
 
-  const queries=[
-    [aircraft,livery].filter(Boolean).join(" "),
-    aircraft
-  ].filter(Boolean);
+  const queries=[...new Set([
+    [livery,aircraft].filter(Boolean).join(" "),
+    aircraft,
+    aircraft+" aircraft",
+    aircraft+" airliner"
+  ].filter(Boolean))];
 
   try{
     let candidates=[];
@@ -498,8 +500,8 @@ async function loadAircraftPhoto(f){
       if(candidates.length>=10)break;
     }
 
-    const aircraftWords=/\\b(aircraft|airliner|airplane|aeroplane|aviation|jet|helicopter|airliner)\\b/i;
-    const humanWords=/\\b(person|politician|actor|actress|pilot|terrorist|militant|criminal|footballer|singer|writer|president|minister|general)\\b/i;
+    const aircraftWords=/\b(aircraft|airliner|airplane|aeroplane|aviation|jet|helicopter|airliner)\b/i;
+    const humanWords=/\b(person|politician|actor|actress|pilot|terrorist|militant|criminal|footballer|singer|writer|president|minister|general)\b/i;
 
     const scored=candidates
       .filter(p=>p?.thumbnail?.source)
@@ -513,9 +515,10 @@ async function loadAircraftPhoto(f){
         if(aircraftWords.test(description))score+=8;
         if(humanWords.test(description))score-=20;
         if(aircraftTokens.some(t=>titleNorm.includes(t)))score+=3;
-        if(aircraftNorm&&titleNorm.includes(aircraftNorm))score+=8;
-        if(liveryNorm&&titleNorm.includes(liveryNorm))score+=4;
-        if(/\\b(747|737|777|787|a3[0-9]{2}|a220|a330|a340|a350|a380|md[- ]?11|md[- ]?80|crj|embraer|e170|e175|e190|e195|atr|dash|concorde)\\b/i.test(text))score+=4;
+        if(aircraftNorm&&titleNorm.includes(aircraftNorm))score+=10;
+        if(modelNorm&&titleNorm.includes(modelNorm))score+=7;
+        if(liveryNorm&&titleNorm.includes(liveryNorm))score+=5;
+        if(/\b(747|737|777|787|a3[0-9]{2}|a220|a330|a340|a350|a380|md[- ]?11|md[- ]?80|crj|embraer|e170|e175|e190|e195|atr|dash|concorde)\b/i.test(text))score+=4;
 
         return {p,score,description};
       })
@@ -532,8 +535,22 @@ async function loadAircraftPhoto(f){
     aircraftPhotoCache.set(key,photo);
     renderAircraftPhoto(box,photo);
   }catch{
-    aircraftPhotoCache.set(key,null);
-    renderAircraftPhoto(box,null);
+    try{
+      const fallbackUrl="https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch="+
+        encodeURIComponent(aircraft+" aircraft")+
+        "&gsrlimit=8&prop=imageinfo|info&iiprop=url&iiurlwidth=900&format=json&origin=*";
+      const rr=await fetch(fallbackUrl,{cache:"no-store"});
+      const dd=await rr.json();
+      const pages=Object.values(dd.query?.pages||{});
+      const best=pages.find(p=>p?.imageinfo?.[0]?.thumburl||p?.imageinfo?.[0]?.url);
+      const info=best?.imageinfo?.[0];
+      const photo=best&&info?{src:info.thumburl||info.url,title:best.title||aircraft,url:info.descriptionurl||info.url}:null;
+      aircraftPhotoCache.set(key,photo);
+      renderAircraftPhoto(box,photo);
+    }catch{
+      aircraftPhotoCache.set(key,null);
+      renderAircraftPhoto(box,null);
+    }
   }
 }
 
@@ -783,8 +800,8 @@ async function loadAirportPhoto(a){
       if(candidates.length>=10)break;
     }
 
-    const airportWords=/\\b(airport|international airport|aerodrome|airfield|aviation)\\b/i;
-    const badWords=/\\b(person|politician|actor|actress|terrorist|militant|criminal|footballer|singer|writer|president|minister)\\b/i;
+    const airportWords=/\b(airport|international airport|aerodrome|airfield|aviation)\b/i;
+    const badWords=/\b(person|politician|actor|actress|terrorist|militant|criminal|footballer|singer|writer|president|minister)\b/i;
     const icaoNorm=icao.toLowerCase();
     const nameTokens=name.toLowerCase().replace(/[^a-z0-9]+/g," ").split(/\\s+/).filter(x=>x.length>2);
 
