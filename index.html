@@ -45,29 +45,12 @@
       <span id="airportCount"> · Airports off</span>
     </div>
 
-    <div class="search-row">
-      <input id="search" autocomplete="off" placeholder="Search callsign, pilot, flight ID, aircraft or livery">
-      <button id="searchBtn">Search</button>
-    </div>
-
-    <div class="quick-filters">
-      <button class="filter-chip active" data-phase="all">All</button>
-      <button class="filter-chip" data-phase="ground">Ground</button>
-      <button class="filter-chip" data-phase="climb">Climb</button>
-      <button class="filter-chip" data-phase="cruise">Cruise</button>
-      <button class="filter-chip" data-phase="descent">Descent</button>
-    </div>
-
-    <div class="filter-grid">
-      <input id="aircraftFilter" placeholder="Aircraft">
-      <input id="liveryFilter" placeholder="Livery">
-      <input id="vaFilter" placeholder="Airline / VA">
-      <input id="airportFilter" maxlength="4" placeholder="Airport ICAO">
-      <input id="minAlt" inputmode="numeric" placeholder="Min alt ft">
-      <input id="maxAlt" inputmode="numeric" placeholder="Max alt ft">
-      <input id="minSpeed" inputmode="numeric" placeholder="Min kt">
-      <button id="resetBtn">Clear</button>
-    </div>
+    <div class="search-row"><input id="search" autocomplete="off" placeholder="Search flight"><button id="searchBtn">Go</button></div>
+<button id="filtersBtn" class="simple-settings">Filters</button>
+<div id="filtersBox" class="filter-box hidden">
+<div class="quick-filters"><button class="filter-chip active" data-phase="all">All</button><button class="filter-chip" data-phase="ground">Ground</button><button class="filter-chip" data-phase="air">Air</button></div>
+<div class="filter-grid"><input id="aircraftFilter" placeholder="Plane"><input id="airportFilter" maxlength="4" placeholder="Airport"><input id="minAlt" inputmode="numeric" placeholder="Min height"><input id="maxAlt" inputmode="numeric" placeholder="Max height"><button id="resetBtn">Clear</button></div>
+</div>
 
     <div id="airportSearch" class="airport-search hidden">
       <input id="airportInput" maxlength="4" autocomplete="off" placeholder="ICAO airport, e.g. LTFM">
