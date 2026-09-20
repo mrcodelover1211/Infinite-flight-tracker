@@ -67,10 +67,25 @@ main{height:calc(100% - 100px);display:grid;grid-template-columns:minmax(0,1fr) 
 .tabs{display:flex;gap:5px;margin:9px 0}
 .tabs button{flex:1;background:#17212d;border:1px solid #304052;color:#dfe8f2;border-radius:6px;padding:7px}
 .tabs button.active{background:#29405a}
-.aircraft-marker{--plane-size:14px;width:var(--plane-size);height:var(--plane-size);display:flex;align-items:center;justify-content:center;filter:drop-shadow(0 1px 2px #000b);transform-origin:50% 50%}
+.aircraft-hitbox{
+  position:relative;width:36px;height:36px;
+  display:flex;align-items:center;justify-content:center;
+  pointer-events:auto;touch-action:manipulation;cursor:pointer;overflow:visible
+}
+.aircraft-marker{--plane-size:14px;width:var(--plane-size);height:var(--plane-size);display:flex;align-items:center;justify-content:center;filter:drop-shadow(0 1px 2px #000b);transform-origin:50% 50%;position:relative;z-index:1;pointer-events:none}
 .aircraft-marker svg{width:calc(var(--plane-size)*.82);height:calc(var(--plane-size)*.82);overflow:visible}
-.aircraft-marker.selected{filter:drop-shadow(0 0 4px #fff);z-index:3}
+.aircraft-marker.selected{filter:drop-shadow(0 0 5px #ff8a00);z-index:3}
 .aircraft-marker svg path{fill:#ffd43b;stroke:#6b5500;stroke-width:.8}
+.aircraft-marker.selected svg path{fill:#ff8a00;stroke:#7a3f00;stroke-width:.8}
+.selected-callsign{
+  position:absolute;left:50%;top:-17px;transform:translateX(-50%);
+  max-width:120px;padding:2px 5px;border-radius:4px;
+  background:#111823ef;border:1px solid #ff8a00;color:#fff;
+  font-size:10px;font-weight:800;line-height:1.1;white-space:nowrap;
+  overflow:hidden;text-overflow:ellipsis;pointer-events:none;
+  opacity:0;visibility:hidden;z-index:5;box-shadow:0 2px 7px #000a
+}
+.aircraft-marker.selected + .selected-callsign{opacity:1;visibility:visible}
 footer{height:28px;background:#070a0f;border-top:1px solid #202936;color:#687587;font-size:10px;padding:6px 10px;display:flex;justify-content:space-between;gap:10px;white-space:nowrap;overflow:hidden}
 .overlay{position:fixed;inset:0;background:#0009;z-index:5000;display:flex;align-items:flex-start;justify-content:center;padding:70px 18px 20px;overflow:auto}
 .settings-modal{width:min(720px,100%);background:#0c1118;border:1px solid #2a3949;border-radius:12px;box-shadow:0 18px 60px #000b;padding:14px}
