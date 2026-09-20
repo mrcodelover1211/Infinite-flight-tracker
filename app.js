@@ -69,26 +69,32 @@ async function showWikiPhoto(f){
   }catch{}
 }
 function renderFlightDetails(f){
-
-  lastSelectedId=String(f.flight_id||"");$("details").className="";
-  const aircraftName=f.aircraft?.aircraft_name||"Aircraft type unavailable";const liveryName=f.aircraft?.livery_name||"Livery unavailable";
+  lastSelectedId=String(f.flight_id||"");
+  $("details").className="";
+  const aircraftName=f.aircraft?.aircraft_name||"Aircraft type unavailable";
+  const liveryName=f.aircraft?.livery_name||"Livery unavailable";
   const dest=f.destination?.identifier||f.destination?.name||"Unknown";
   const routeText=Array.isArray(f.route)&&f.route.length?f.route.length+" historical position reports":"Route history unavailable";
-  $("details").innerHTML='<div class="card">'+(f.wiki_photo?'<img class="photo" src="'+escapeHtml(f.wiki_photo.url)+'" alt="Aircraft photo"><div class="photo-credit">Wikimedia Commons · '+escapeHtml(f.wiki_photo.title||"")+'</div>':"")+'<div class="aircraft">'+escapeHtml(f.callsign||"Unknown callsign")+'</div><div class="muted">'+escapeHtml(aircraftName)+" · "+escapeHtml(liveryName)+'</div><div class="grid">'+<div class="aircraft">'+escapeHtml(f.callsign||"Unknown callsign")+'</div><div class="grid">'+
-  '<div><div class="label">Pilot</div><div class="value">'+escapeHtml(f.username||"—")+'</div></div>'+
-  '<div><div class="label">Flight ID</div><div class="value">'+escapeHtml(f.flight_id||"—")+'</div></div>'+
-  '<div><div class="label">Destination</div><div class="value"><span class="route-badge">'+escapeHtml(dest)+'</span></div></div>'+
-  '<div><div class="label">Trail</div><div class="value">'+escapeHtml(routeText)+'</div></div>'+
-  '<div><div class="label">Altitude</div><div class="value">'+formatNumber(f.altitude_ft)+' ft</div></div>'+
-  '<div><div class="label">Speed</div><div class="value">'+formatNumber(f.speed_kt)+' kt</div></div>'+
-  '<div><div class="label">Heading</div><div class="value">'+formatNumber(f.heading_deg)+'°</div></div>'+
-  '<div><div class="label">Vertical speed</div><div class="value">'+formatNumber(f.vertical_speed_fpm)+' ft/min</div></div>'+
-  '<div><div class="label">Position</div><div class="value">'+formatNumber(f.latitude,4)+", "+formatNumber(f.longitude,4)+'</div></div>'+
-  '<div><div class="label">Track</div><div class="value">'+formatNumber(f.track_deg)+'°</div></div>'+
-  '<div><div class="label">Aircraft ID</div><div class="value">'+escapeHtml(f.aircraft_id||"—")+'</div></div>'+
-  '<div><div class="label">Livery ID</div><div class="value">'+escapeHtml(f.livery_id||"—")+'</div></div>'+
-  '<div class="wide"><div class="label">Last report</div><div class="value">'+escapeHtml(formatReport(f.last_report))+'</div></div>'+
-  '</div><div class="detail-actions"><button class="small-btn" id="bookBtn">Business class seats</button><button class="small-btn" id="routeBtn">Show route</button></div><div id="bookingBox"></div></div>';
+  $("details").innerHTML=
+    '<div class="card">'+
+    (f.wiki_photo?'<img class="photo" src="'+escapeHtml(f.wiki_photo.url)+'" alt="Aircraft photo"><div class="photo-credit">Wikimedia Commons · '+escapeHtml(f.wiki_photo.title||"")+'</div>':"")+
+    '<div class="aircraft">'+escapeHtml(f.callsign||"Unknown callsign")+'</div>'+
+    '<div class="muted">'+escapeHtml(aircraftName)+" · "+escapeHtml(liveryName)+'</div>'+
+    '<div class="grid">'+
+    '<div><div class="label">Pilot</div><div class="value">'+escapeHtml(f.username||"—")+'</div></div>'+
+    '<div><div class="label">Flight ID</div><div class="value">'+escapeHtml(f.flight_id||"—")+'</div></div>'+
+    '<div><div class="label">Destination</div><div class="value"><span class="route-badge">'+escapeHtml(dest)+'</span></div></div>'+
+    '<div><div class="label">Trail</div><div class="value">'+escapeHtml(routeText)+'</div></div>'+
+    '<div><div class="label">Altitude</div><div class="value">'+formatNumber(f.altitude_ft)+' ft</div></div>'+
+    '<div><div class="label">Speed</div><div class="value">'+formatNumber(f.speed_kt)+' kt</div></div>'+
+    '<div><div class="label">Heading</div><div class="value">'+formatNumber(f.heading_deg)+'°</div></div>'+
+    '<div><div class="label">Vertical speed</div><div class="value">'+formatNumber(f.vertical_speed_fpm)+' ft/min</div></div>'+
+    '<div><div class="label">Position</div><div class="value">'+formatNumber(f.latitude,4)+", "+formatNumber(f.longitude,4)+'</div></div>'+
+    '<div><div class="label">Track</div><div class="value">'+formatNumber(f.track_deg)+'°</div></div>'+
+    '<div><div class="label">Aircraft ID</div><div class="value">'+escapeHtml(f.aircraft_id||"—")+'</div></div>'+
+    '<div><div class="label">Livery ID</div><div class="value">'+escapeHtml(f.livery_id||"—")+'</div></div>'+
+    '<div class="wide"><div class="label">Last report</div><div class="value">'+escapeHtml(formatReport(f.last_report))+'</div></div>'+
+    '</div><div class="detail-actions"><button class="small-btn" id="bookBtn">Business class seats</button><button class="small-btn" id="routeBtn">Show route</button></div><div id="bookingBox"></div></div>';
   $("bookBtn").addEventListener("click",()=>showBooking(f));
   $("routeBtn").addEventListener("click",()=>showRoute(f));
 }
