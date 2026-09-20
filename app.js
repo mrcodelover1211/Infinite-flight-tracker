@@ -55,6 +55,7 @@ let listVisible=false;
 const replayBuffer=new Map();
 const MAX_REPLAY_POINTS=240;
 let weatherLayer=null;
+let weatherTimer=0;
 let densityLayers=[];
 let dayNightLayer=null;
 let rangeRingLayers=[];
@@ -865,7 +866,11 @@ function renderWorld(){
   }
 
   if(settings.atc&&map.getZoom()>=4){
-    for(const a of worldData.atc||[]){
+    const visibleAtc=(worldData.atc||[]).filter(a=>{
+      const lat=Number(a.latitude),lon=normLon(a.longitude);
+      return Number.isFinite(lat)&&Number.isFinite(lon)&&bounds.pad(0.15).contains([lat,lon]);
+    }).slice(0,400);
+    for(const a of visibleAtc){
       const lat=Number(a.latitude),lon=normLon(a.longitude);
       if(!Number.isFinite(lat)||!Number.isFinite(lon))continue;
       const m=L.circleMarker([lat,lon],{radius:3,color:"#ffcf70",weight:1,fillColor:"#ffcf70",fillOpacity:.8});
@@ -988,6 +993,7 @@ function toggleFavorite(f){
 
 async function refreshWeatherLayer(){
   if(weatherLayer){map.removeLayer(weatherLayer);weatherLayer=null;}
+  if(weatherTimer){clearTimeout(weatherTimer);weatherTimer=0;}
   if(!settings.weather){$("weatherCredit").classList.add("hidden");return;}
   try{
     const r=await fetch("https://api.rainviewer.com/public/weather-maps.json",{cache:"no-store"});
@@ -999,6 +1005,7 @@ async function refreshWeatherLayer(){
       tileSize:256,opacity:.55,maxNativeZoom:7,maxZoom:12,attribution:"Weather by RainViewer"
     }).addTo(map);
     $("weatherCredit").classList.remove("hidden");
+    if(settings.weather)weatherTimer=setTimeout(()=>refreshWeatherLayer(),120000);
   }catch(e){
     settings.weather=false;
     document.querySelector('[data-setting="weather"]')?.classList.remove("active");
@@ -1868,9 +1875,11 @@ document.addEventListener("visibilitychange",()=>{
   if(document.visibilityState==="visible"){
     idlePaused=false;
     lastInteractionAt=Date.now();
+    if(settings.weather)refreshWeatherLayer();
     load();
   }else{
     idlePaused=true;
+    if(weatherTimer){clearTimeout(weatherTimer);weatherTimer=0;}
   }
 });
 
