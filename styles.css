@@ -216,9 +216,18 @@ body[data-device="phone"] .check-row{height:36px;font-size:10px}
 }
 
 
-.airport-flight-row{position:relative;padding-right:58px}
-.book-flight-btn{position:absolute;right:8px;top:50%;transform:translateY(-50%)}
-.booking-card{display:grid;gap:12px}
+.airport-flight-row{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:10px;align-items:center}
+.airport-flight-info{min-width:0}
+.airport-flight-action{display:flex;align-items:center;justify-content:center}
+.book-flight-btn{position:static;transform:none;white-space:nowrap;min-width:58px}
+.booking-card{display:grid;gap:12px;max-height:min(70vh,620px);overflow:auto;padding-right:2px}
+.booking-flight-summary{padding-bottom:2px}
+.booking-options-title{font-size:11px;font-weight:800;color:#cbd8e5;text-transform:uppercase;letter-spacing:.7px;margin-top:2px}
+.booking-options-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+.booking-label select{height:40px;border:1px solid #2b3949;border-radius:8px;background:#0b1118;color:#eef4fa;padding:0 10px;width:100%}
+.booking-check{display:flex;align-items:center;gap:8px;font-size:11px;color:#aab8c7;padding:2px 0}
+.booking-check input{width:16px;height:16px;accent-color:#2f79c7}
+.booking-card .primary-btn{width:100%;margin-top:2px}
 .booking-route{display:flex;align-items:center;justify-content:center;gap:18px;font-size:20px}
 .booking-route span{color:#74879a}
 .booking-label{display:grid;gap:6px;font-size:11px;color:#8291a3}
@@ -275,4 +284,11 @@ body[data-device="phone"] .check-row{height:36px;font-size:10px}
   border-radius:4px;background:#f4f7fa;color:#15202b;border:1px solid #6d8294;
   box-shadow:0 1px 3px #0008;font:700 9px/17px Arial,sans-serif;
   letter-spacing:.3px;cursor:pointer;white-space:nowrap;
+}
+
+@media(max-width:520px){
+  .airport-flight-row{grid-template-columns:minmax(0,1fr) auto;gap:6px}
+  .book-flight-btn{min-width:52px;padding:0 8px}
+  .booking-options-grid{grid-template-columns:1fr}
+  .booking-card{max-height:62vh}
 }
