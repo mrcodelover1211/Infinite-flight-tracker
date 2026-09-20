@@ -4,3 +4,6 @@
 .airport-search{display:flex;gap:7px;padding:10px;background:#0c1118;border-bottom:1px solid #202936}
 .airport-search input{flex:1;min-width:0;height:36px;background:#111823;border:1px solid #2b3645;color:#fff;border-radius:7px;padding:0 10px;text-transform:uppercase}
 .airport-search button{height:36px;background:#29405a;border:1px solid #3b5874;color:#fff;border-radius:7px;padding:0 10px;cursor:pointer}
+
+.server-switch{display:flex;gap:3px;background:#0a0f16;border:1px solid #293646;border-radius:8px;padding:3px}.server-btn{height:30px!important;padding:0 9px!important;border:0!important;background:transparent!important}.server-btn.active{background:#29405a!important}.server-status{font-size:11px;color:#8190a1;padding:8px 0;border-bottom:1px solid #202936;margin-bottom:8px}.server-status span:first-child{color:#dce7f1;font-weight:700}.controls{flex-wrap:wrap}.airport-panel{max-height:50vh;overflow:auto}
+@media(max-width:900px){.server-switch{order:-1}.server-btn{flex:1}.controls{gap:5px}.controls button{font-size:12px;padding:0 8px}.controls input{order:10;flex-basis:100%}}
