@@ -29,6 +29,8 @@
     <button id="randomBtn" class="top-btn" title="Jump to a random live aircraft">Random flight</button>
     <button id="worldTopBtn" class="top-btn" title="Return to world view">World</button>
     <button id="statsBtn" class="top-btn" title="Open live traffic statistics">Stats</button>
+    <button id="fleetBtn" class="top-btn" title="Open the fleet board">Fleet</button>
+    <button id="layersBtn" class="top-btn" title="Open map layers">Layers</button>
     <button id="settingsBtn" class="top-btn" title="Map, traffic and display settings">⚙ Settings</button>
   </div>
 </header>
@@ -118,6 +120,10 @@
         <button class="setting-toggle active" data-setting="trails">✓ Flight trails</button>
         <button class="setting-toggle active" data-setting="labels">✓ Plane labels</button>
         <button class="setting-toggle active" data-setting="atc">✓ ATC points</button>
+        <button class="setting-toggle" data-setting="density">Traffic density</button>
+        <button class="setting-toggle" data-setting="daynight">Day / night</button>
+        <button class="setting-toggle" data-setting="rings">Range rings</button>
+        <button class="setting-toggle" data-setting="weather">Weather radar</button>
       </div>
     </div>
 
@@ -130,6 +136,10 @@
         <button id="settingsWorldBtn">◎ World view</button>
         <button id="settingsStatsBtn">▣ Live stats</button>
         <button id="settingsAirportMapBtn">● Airport map</button>
+        <button id="settingsLayersBtn">◈ Layers</button>
+        <button id="settingsFleetBtn">▤ Fleet board</button>
+        <button id="settingsReplayBtn">◀ Replay</button>
+        <button id="settingsGlobeBtn">◎ Globe view</button>
       </div>
     </div>
 
@@ -164,6 +174,13 @@
         <input id="airportFilter" maxlength="4" autocomplete="off" spellcheck="false" placeholder="Airport">
         <input id="minAlt" inputmode="numeric" autocomplete="off" placeholder="Min height">
         <input id="maxAlt" inputmode="numeric" autocomplete="off" placeholder="Max height">
+        <input id="minSpeed" inputmode="numeric" autocomplete="off" placeholder="Min speed kt">
+        <input id="maxSpeed" inputmode="numeric" autocomplete="off" placeholder="Max speed kt">
+        <input id="minVs" inputmode="numeric" autocomplete="off" placeholder="Min vertical ft/min">
+        <input id="maxVs" inputmode="numeric" autocomplete="off" placeholder="Max vertical ft/min">
+        <input id="liveryFilter" autocomplete="off" spellcheck="false" placeholder="Livery">
+        <input id="vaFilter" autocomplete="off" spellcheck="false" placeholder="Virtual airline">
+        <select id="classFilter"><option value="">Any aircraft class</option><option value="widebody">Widebody</option><option value="narrowbody">Narrowbody</option><option value="regional">Regional</option><option value="turboprop">Turboprop</option><option value="general">General aviation</option><option value="helicopter">Helicopter</option><option value="military">Military</option><option value="other">Other</option></select>
         <label class="check-row"><input id="connectedOnly" type="checkbox"> Connected only</label>
         <label class="check-row"><input id="callsignOnly" type="checkbox"> Has callsign</label>
       </div>
@@ -181,6 +198,10 @@
         <button id="randomSettingsBtn">Random plane</button>
         <button id="clearSelectionBtn">Clear selection</button>
         <button id="clearRouteBtn">Clear route</button>
+        <button id="nearbyFlightBtn">Nearby traffic</button>
+        <button id="rangeRingsBtn">Range rings</button>
+        <button id="favoriteFlightBtn">Favorite flight</button>
+        <button id="replaySelectedBtn">Replay flight</button>
         <button id="copyFlightBtn">Copy flight</button>
       </div>
     </div>
@@ -192,8 +213,36 @@
         <div><span>Current server</span><b id="settingsServer">Expert</b></div>
         <div><span>Live flights</span><b id="settingsLiveCount">—</b></div>
         <div><span>On map</span><b id="settingsMapCount">—</b></div>
+        <div><span>Data quality</span><b id="settingsDataQuality">—</b></div>
       </div>
     </div>
+  </section>
+</div>
+
+<div id="fleetOverlay" class="overlay hidden" aria-hidden="true">
+  <section class="settings-modal fleet-modal" role="dialog" aria-modal="true" aria-labelledby="fleetTitle">
+    <div class="settings-head">
+      <div><h2 id="fleetTitle">Fleet board</h2><div class="muted">Compare the busiest live aircraft currently visible to this tracker.</div></div>
+      <button id="fleetClose" class="icon-btn" aria-label="Close fleet board">×</button>
+    </div>
+    <div id="fleetContent" class="fleet-content"></div>
+  </section>
+</div>
+
+<div id="replayOverlay" class="overlay hidden" aria-hidden="true">
+  <section class="settings-modal replay-modal" role="dialog" aria-modal="true" aria-labelledby="replayTitle">
+    <div class="settings-head">
+      <div><h2 id="replayTitle">Session replay</h2><div class="muted">Short-lived in-memory replay only. Nothing is saved to your account or database.</div></div>
+      <button id="replayClose" class="icon-btn" aria-label="Close replay">×</button>
+    </div>
+    <div id="replayContent" class="replay-content"></div>
+  </section>
+</div>
+
+<div id="globeOverlay" class="overlay globe-overlay hidden" aria-hidden="true">
+  <section class="globe-shell" role="dialog" aria-modal="true" aria-labelledby="globeTitle">
+    <div class="globe-head"><div><strong id="globeTitle">3D globe</strong><span id="globeStatus" class="muted">Live traffic</span></div><button id="globeClose" class="icon-btn" aria-label="Close globe">×</button></div>
+    <div id="globeContainer" class="globe-container"></div>
   </section>
 </div>
 
@@ -214,11 +263,12 @@
       <div><span>Connected</span><strong id="statConnected">—</strong></div>
       <div><span>With callsign</span><strong id="statCallsign">—</strong></div>
     </div>
+    <div id="statsBreakdown" class="stats-breakdown"></div>
   </section>
 </div>
 
 <footer>
-  <span>Live data from Infinite Flight Live API · © OpenStreetMap contributors</span>
+  <span>Live data from Infinite Flight Live API · © OpenStreetMap contributors <span id="weatherCredit" class="hidden">· Weather data by RainViewer</span></span>
   <span id="updated">Not updated yet</span>
 </footer>
 
