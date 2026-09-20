@@ -21,9 +21,12 @@
       <button class="server-btn" data-server="training">Training</button>
       <button class="server-btn active" data-server="expert">Expert</button>
     </div>
+    <button id="listBtn" class="top-btn">List</button>
     <button id="airportsToggle" class="top-btn">Airports</button>
-    <button id="airportBtn" class="top-btn">✈ Airport</button>
+    <button id="airportBtn" class="top-btn">Airport</button>
     <button id="fitBtn" class="top-btn">Fit</button>
+    <button id="randomBtn" class="top-btn">Random</button>
+    <button id="settingsBtn" class="top-btn">Settings</button>
   </div>
 </header>
 
@@ -36,25 +39,34 @@
         <h2>Live flights</h2>
         <div id="summary">Waiting for live data…</div>
       </div>
-      <button id="refreshBtn" class="icon-btn" title="Refresh now">↻</button>
+      <button id="refreshBtn" class="icon-btn" title="Refresh now" aria-label="Refresh now">↻</button>
     </div>
 
     <div class="server-status">
       <b id="serverLabelMirror">Expert</b>
-      <span> · </span><span id="serverCounts">—</span> flights
+      <span> · </span><span id="serverCounts">—</span> live
       <span id="airportCount"> · Airports off</span>
     </div>
 
-    <div class="search-row"><input id="search" autocomplete="off" placeholder="Search flight"><button id="searchBtn">Go</button></div>
-<button id="filtersBtn" class="simple-settings">Filters</button>
-<div id="filtersBox" class="filter-box hidden">
-<div class="quick-filters"><button class="filter-chip active" data-phase="all">All</button><button class="filter-chip" data-phase="ground">Ground</button><button class="filter-chip" data-phase="air">Air</button></div>
-<div class="filter-grid"><input id="aircraftFilter" placeholder="Plane"><input id="airportFilter" maxlength="4" placeholder="Airport"><input id="minAlt" inputmode="numeric" placeholder="Min height"><input id="maxAlt" inputmode="numeric" placeholder="Max height"><button id="resetBtn">Clear</button></div>
-</div>
+    <div class="search-row">
+      <input id="search" autocomplete="off" spellcheck="false" placeholder="Search callsign, pilot, plane or airport">
+      <button id="searchBtn">Find</button>
+      <button id="clearSearchBtn" class="secondary-btn" title="Clear search">Clear</button>
+    </div>
+
+    <div id="searchHint" class="search-hint">Search is off until you press Find.</div>
+
+    <div id="trafficList" class="traffic-list hidden">
+      <div class="list-head">
+        <b>Traffic</b>
+        <span id="listSummary">—</span>
+      </div>
+      <div id="flightRows"></div>
+    </div>
 
     <div id="airportSearch" class="airport-search hidden">
-      <input id="airportInput" maxlength="4" autocomplete="off" placeholder="ICAO airport, e.g. LTFM">
-      <button id="airportGo">Open airport</button>
+      <input id="airportInput" maxlength="4" autocomplete="off" spellcheck="false" placeholder="Airport code, e.g. LTFM">
+      <button id="airportGo">Open</button>
     </div>
 
     <div id="error" class="error hidden"></div>
@@ -62,6 +74,100 @@
     <div id="airportPanel" class="airport-panel hidden"></div>
   </aside>
 </main>
+
+<div id="settingsOverlay" class="overlay hidden" aria-hidden="true">
+  <section class="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
+    <div class="settings-head">
+      <div>
+        <h2 id="settingsTitle">Settings</h2>
+        <div class="muted">Extra tools stay here so the map stays clean.</div>
+      </div>
+      <button id="settingsClose" class="icon-btn" aria-label="Close settings">×</button>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-title">Map</div>
+      <div class="settings-grid">
+        <button class="setting-toggle active" data-setting="airports">✓ Airports</button>
+        <button class="setting-toggle active" data-setting="trails">✓ Flight trails</button>
+        <button class="setting-toggle active" data-setting="labels">✓ Plane labels</button>
+        <button class="setting-toggle active" data-setting="atc">✓ ATC points</button>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-title">Plane size</div>
+      <div class="segmented" id="planeSizePicker">
+        <button data-size="small">Small</button>
+        <button class="active" data-size="normal">Normal</button>
+        <button data-size="large">Large</button>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-title">Traffic filters</div>
+      <div class="segmented" id="phasePicker">
+        <button class="active" data-phase="all">All</button>
+        <button data-phase="air">Air</button>
+        <button data-phase="ground">Ground</button>
+      </div>
+      <div class="settings-grid two">
+        <input id="aircraftFilter" autocomplete="off" spellcheck="false" placeholder="Plane type">
+        <input id="airportFilter" maxlength="4" autocomplete="off" spellcheck="false" placeholder="Airport">
+        <input id="minAlt" inputmode="numeric" autocomplete="off" placeholder="Min height">
+        <input id="maxAlt" inputmode="numeric" autocomplete="off" placeholder="Max height">
+        <label class="check-row"><input id="connectedOnly" type="checkbox"> Connected only</label>
+        <label class="check-row"><input id="callsignOnly" type="checkbox"> Has callsign</label>
+      </div>
+      <div class="settings-actions">
+        <button id="applyFiltersBtn">Apply filters</button>
+        <button id="resetBtn" class="secondary-btn">Clear filters</button>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-title">Tools</div>
+      <div class="settings-grid three">
+        <button id="worldBtn">World view</button>
+        <button id="fitSettingsBtn">Fit planes</button>
+        <button id="randomSettingsBtn">Random plane</button>
+        <button id="clearSelectionBtn">Clear selection</button>
+        <button id="clearRouteBtn">Clear route</button>
+        <button id="copyFlightBtn">Copy flight</button>
+      </div>
+    </div>
+
+    <div class="settings-section">
+      <div class="settings-title">Live data</div>
+      <div class="data-grid">
+        <div><span>Update</span><b>15 sec</b></div>
+        <div><span>Current server</span><b id="settingsServer">Expert</b></div>
+        <div><span>Live flights</span><b id="settingsLiveCount">—</b></div>
+        <div><span>On map</span><b id="settingsMapCount">—</b></div>
+      </div>
+    </div>
+  </section>
+</div>
+
+<div id="statsOverlay" class="overlay hidden" aria-hidden="true">
+  <section class="settings-modal stats-modal" role="dialog" aria-modal="true" aria-labelledby="statsTitle">
+    <div class="settings-head">
+      <div>
+        <h2 id="statsTitle">Live stats</h2>
+        <div class="muted">A quick view of the current server.</div>
+      </div>
+      <button id="statsClose" class="icon-btn" aria-label="Close stats">×</button>
+    </div>
+    <div class="stats-grid">
+      <div><span>Live</span><strong id="statLive">—</strong></div>
+      <div><span>On map</span><strong id="statMap">—</strong></div>
+      <div><span>Air</span><strong id="statAir">—</strong></div>
+      <div><span>Ground</span><strong id="statGround">—</strong></div>
+      <div><span>Connected</span><strong id="statConnected">—</strong></div>
+      <div><span>With callsign</span><strong id="statCallsign">—</strong></div>
+    </div>
+  </section>
+</div>
 
 <footer>
   <span>Live data from Infinite Flight Live API · © OpenStreetMap contributors</span>
