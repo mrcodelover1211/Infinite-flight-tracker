@@ -595,12 +595,23 @@ function drawRoute(f){
   map.fitBounds(L.latLngBounds(pts),{padding:[40,40],maxZoom:7,animate:false});
 }
 
-function airportTowerIcon(){
+function airportIconForZoom(a){
+  const z=map.getZoom();
+  const icao=esc(a.icao||"");
+  if(z>=6){
+    return L.divIcon({
+      className:"airport-icao-marker",
+      html:'<div>'+icao+'</div>',
+      iconSize:[52,20],
+      iconAnchor:[26,10],
+      pane:"airportPane"
+    });
+  }
   return L.divIcon({
-    className:"airport-tower-wrap",
-    html:'<div class="airport-tower-hit" aria-label="Airport" style="width:40px;height:40px;display:flex;align-items:center;justify-content:center;background:transparent;border:0;box-shadow:none;"><div style="width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;background:#124370;border:1.5px solid #fff;box-shadow:0 2px 5px #000b;"><svg viewBox="0 0 20 20" style="width:15px;height:15px;fill:none;stroke:#fff;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round;"><path d="M3 18h14M5 18V7h10v11M4 7l6-5 6 5M7 10h2v2H7zm4 0h2v2h-2zm-4 4h2v2H7zm4 0h2v2h-2z"/></svg></div></div>',
-    iconSize:[40,40],
-    iconAnchor:[20,20],
+    className:"airport-departure-marker",
+    html:'<div aria-label="Airport"><svg viewBox="0 0 24 24"><path d="M21 11.5l-7.2-2.2L11 3.5 9.2 3l.9 6.3-5.3-1.6-2-2.1-1.2.4 1.5 3.4-1.5 3.4 1.2.4 2-2.1 5.3-1.6-.9 6.3 1.8-.5 2.8-5.8L21 12.5z"/></svg></div>',
+    iconSize:[24,24],
+    iconAnchor:[12,12],
     pane:"airportPane"
   });
 }
@@ -609,7 +620,6 @@ function renderWorld(){
   if(!airportsVisible||!worldData)return;
   clearWorld();
 
-  // Keep the visual tower compact, but give it a generous invisible touch target.
   const bounds=map.getBounds().pad(0.35);
   const airports=(worldData.airports||[]).filter(a=>{
     const lat=Number(a.latitude),lon=normLon(a.longitude);
@@ -619,7 +629,7 @@ function renderWorld(){
   for(const a of airports){
     const lat=Number(a.latitude),lon=normLon(a.longitude);
     const marker=L.marker([lat,lon],{
-      icon:airportTowerIcon(),
+      icon:airportIconForZoom(a),
       keyboard:false,
       zIndexOffset:1000,
       pane:"airportPane",
