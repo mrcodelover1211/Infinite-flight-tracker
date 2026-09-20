@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
 <meta name="description" content="Live Infinite Flight flight tracker">
 <title>Infinite Flight Tracker</title>
 <link rel="stylesheet" href="styles.css">
@@ -17,19 +17,13 @@
 
   <div class="top-controls">
     <div class="server-picker" aria-label="Infinite Flight server">
-      <div class="server-picker-head">
-        <span>Server</span>
-        <strong id="serverLabel">Expert</strong>
-      </div>
-      <input id="serverSlider" type="range" min="0" max="2" step="1" value="2" aria-label="Switch between Casual, Training and Expert servers">
-      <div class="server-scale" aria-hidden="true">
-        <span>Casual</span>
-        <span>Training</span>
-        <span>Expert</span>
-      </div>
+      <button class="server-btn" data-server="casual">Casual</button>
+      <button class="server-btn" data-server="training">Training</button>
+      <button class="server-btn active" data-server="expert">Expert</button>
     </div>
-    <button id="airportsToggle">Airports</button>
-    <button id="airportBtn" aria-expanded="false">✈ Airport</button>
+    <button id="airportsToggle" class="top-btn">Airports</button>
+    <button id="airportBtn" class="top-btn">✈ Airport</button>
+    <button id="fitBtn" class="top-btn">Fit</button>
   </div>
 </header>
 
@@ -42,35 +36,36 @@
         <h2>Live flights</h2>
         <div id="summary">Waiting for live data…</div>
       </div>
-      <button id="refreshBtn" class="icon-btn" title="Refresh now" aria-label="Refresh now">↻</button>
+      <button id="refreshBtn" class="icon-btn" title="Refresh now">↻</button>
     </div>
 
     <div class="server-status">
-      <span id="serverLabelMirror">Server</span>
-      <span aria-hidden="true"> · </span>
-      <span id="serverCounts">—</span> flights
-      <span aria-hidden="true"> · </span>
-      <span id="serverHint">Canvas mode</span>
+      <b id="serverLabelMirror">Expert</b>
+      <span> · </span><span id="serverCounts">—</span> flights
       <span id="airportCount"> · Airports off</span>
     </div>
 
-    <div class="feature-strip">
-      <span>15s live refresh</span>
-      <span>Canvas aircraft map</span>
-      <span>Double-click to follow</span>
-      <span>AI-readable live endpoint</span>
+    <div class="search-row">
+      <input id="search" autocomplete="off" placeholder="Search callsign, pilot, flight ID, aircraft or livery">
+      <button id="searchBtn">Search</button>
     </div>
 
-    <div class="search-row">
-      <input id="search" autocomplete="off" placeholder="Search callsign, pilot, aircraft, livery or flight ID">
-      <button id="searchBtn">Search</button>
-      <button id="fitBtn">Fit</button>
+    <div class="quick-filters">
+      <button class="filter-chip active" data-phase="all">All</button>
+      <button class="filter-chip" data-phase="ground">Ground</button>
+      <button class="filter-chip" data-phase="climb">Climb</button>
+      <button class="filter-chip" data-phase="cruise">Cruise</button>
+      <button class="filter-chip" data-phase="descent">Descent</button>
     </div>
 
     <div class="filter-grid">
-      <input id="aircraftFilter" autocomplete="off" placeholder="Aircraft filter">
-      <input id="liveryFilter" autocomplete="off" placeholder="Livery filter">
-      <input id="vaFilter" autocomplete="off" placeholder="Virtual airline filter">
+      <input id="aircraftFilter" placeholder="Aircraft">
+      <input id="liveryFilter" placeholder="Livery">
+      <input id="vaFilter" placeholder="Airline / VA">
+      <input id="airportFilter" maxlength="4" placeholder="Airport ICAO">
+      <input id="minAlt" inputmode="numeric" placeholder="Min alt ft">
+      <input id="maxAlt" inputmode="numeric" placeholder="Max alt ft">
+      <input id="minSpeed" inputmode="numeric" placeholder="Min kt">
       <button id="resetBtn">Clear</button>
     </div>
 
