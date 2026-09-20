@@ -67,10 +67,6 @@ main{height:calc(100% - 100px);display:grid;grid-template-columns:minmax(0,1fr) 
 .tabs{display:flex;gap:5px;margin:9px 0}
 .tabs button{flex:1;background:#17212d;border:1px solid #304052;color:#dfe8f2;border-radius:6px;padding:7px}
 .tabs button.active{background:#29405a}
-.airport-label-wrap{background:transparent!important;border:0!important;pointer-events:auto}
-.airport-label{border:1px solid #46617a;background:#101a25f2;color:#e8f2fb;border-radius:999px;padding:2px 5px;font-size:8px;font-weight:800;box-shadow:0 1px 4px #0009;cursor:pointer;white-space:nowrap}
-.airport-label:hover{background:#29405a;border-color:#6287a8}
-.airport-dot{width:7px;height:7px;border-radius:50%;background:#fff;border:1px solid #34495e;box-shadow:0 1px 3px #0009}
 .aircraft-marker{--plane-size:14px;width:var(--plane-size);height:var(--plane-size);display:flex;align-items:center;justify-content:center;filter:drop-shadow(0 1px 2px #000b);transform-origin:50% 50%}
 .aircraft-marker svg{width:calc(var(--plane-size)*.82);height:calc(var(--plane-size)*.82);overflow:visible}
 .aircraft-marker.selected{filter:drop-shadow(0 0 4px #fff)}
@@ -219,7 +215,7 @@ body[data-device="phone"] .check-row{height:36px;font-size:10px}
   .aircraft-photo img{height:120px}
 }
 
-.airport-tower:hover .airport-tower-hit{background:#1976c2;box-shadow:0 0 0 3px #fff,0 2px 7px #000}
+
 .airport-flight-row{position:relative;padding-right:58px}
 .book-flight-btn{position:absolute;right:8px;top:50%;transform:translateY(-50%)}
 .booking-card{display:grid;gap:12px}
@@ -264,6 +260,7 @@ body[data-device="phone"] .check-row{height:36px;font-size:10px}
   background:transparent!important;
   border:0!important;
   pointer-events:auto!important;
+  touch-action:manipulation;
 }
 .airport-departure-marker>div{
   width:24px;height:24px;display:flex;align-items:center;justify-content:center;
@@ -271,11 +268,11 @@ body[data-device="phone"] .check-row{height:36px;font-size:10px}
   box-shadow:0 1px 4px #000b;cursor:pointer;
 }
 .airport-departure-marker svg{
-  width:14px;height:14px;fill:#fff;transform:rotate(-12deg);
+  width:12px;height:12px;fill:#fff;transform:rotate(-12deg);
 }
 .airport-icao-marker>div{
   min-width:42px;height:18px;padding:0 5px;display:flex;align-items:center;justify-content:center;
   border-radius:4px;background:#f4f7fa;color:#15202b;border:1px solid #6d8294;
-  box-shadow:0 1px 3px #0008;font:700 9px/18px Arial,sans-serif;
+  box-shadow:0 1px 3px #0008;font:700 9px/17px Arial,sans-serif;
   letter-spacing:.3px;cursor:pointer;white-space:nowrap;
 }
