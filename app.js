@@ -796,16 +796,47 @@ async function loadAircraftPhoto(f){
   const flightKey=String(f.flight_id||"");
   if(box.dataset.flightId!==flightKey)return;
 
-  const aircraft=String(f.aircraft_type||"aircraft").trim();
-  const livery=localLiveryForFlight(f);
+  box.innerHTML='<div class="aircraft-photo-loading">Searching aircraft photo sources…</div>';
 
-  // No runtime web search. The tracker uses its local aircraft/operator catalog.
-  // If Live API livery metadata is temporarily unavailable, a known callsign
-  // operator can still supply the livery label.
-  const photo=localAircraftCard(aircraft,livery);
-  if(box.dataset.flightId===flightKey)renderAircraftPhoto(box,photo);
+  try{
+    const params=new URLSearchParams({
+      detail:"photo_verify",
+      aircraft:String(f.aircraft_type||""),
+      livery:String(f.livery_name||""),
+      callsign:String(f.callsign||""),
+      aircraftId:String(f.aircraft_id||""),
+      liveryId:String(f.livery_id||"")
+    });
+    const r=await fetch(API+"?"+params.toString(),{cache:"no-store"});
+    const d=r.ok?await r.json():null;
+
+    // The backend may recover the livery from the exact IF liveryId, callsign
+    // mapping, or external aviation metadata even when the main feed said unavailable.
+    if(d?.resolved_livery&&box.dataset.flightId===flightKey){
+      f.livery_name=d.resolved_livery;
+      f.livery_source=d.livery_source||"photo_web_lookup";
+      selectedFlight={...selectedFlight,...f};
+      renderDetails(selectedFlight);
+    }
+
+    if(box.dataset.flightId!==flightKey)return;
+
+    if(d?.image){
+      renderAircraftPhoto(box,{
+        src:d.image,
+        title:String((d.resolved_livery||f.livery_name||"")+" "+(f.aircraft_type||"Aircraft")).trim(),
+        url:d.url||"https://www.planespotters.net/photo/search",
+        source:d.source||"Web aircraft photo search",
+        verification_source:d.evidence?"Web source match":null,
+        verified:Boolean(d.verified)
+      });
+    }else{
+      renderAircraftPhoto(box,null);
+    }
+  }catch{
+    if(box.dataset.flightId===flightKey)renderAircraftPhoto(box,null);
+  }
 }
-
 function renderAircraftPhoto(box,photo){
   if(!box)return;
   if(!photo){
