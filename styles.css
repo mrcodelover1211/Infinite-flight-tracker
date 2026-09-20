@@ -220,7 +220,8 @@ body[data-device="phone"] .check-row{height:36px;font-size:10px}
 }
 
 .airport-tower-wrap{background:transparent!important;border:0!important}
-.airport-tower{width:12px;height:12px;display:flex;align-items:center;justify-content:center;color:#dbe8f5;font-size:12px;line-height:12px;text-shadow:0 1px 3px #000}
+.airport-tower{width:16px;height:16px;display:flex;align-items:center;justify-content:center;filter:drop-shadow(0 1px 2px #000)}
+.airport-tower svg{width:15px;height:15px;fill:none;stroke:#ffffff;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}
 .airport-flight-row{position:relative;padding-right:58px}
 .book-flight-btn{position:absolute;right:8px;top:50%;transform:translateY(-50%)}
 .booking-card{display:grid;gap:12px}
