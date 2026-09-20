@@ -334,7 +334,7 @@ function renderFlights(){
     let marker=markers.get(id);
     if(!marker)marker=createPlaneMarker(f);
     updatePlane(marker,f,selected);
-    if(settings.trails&&selected)updateTrail(id,f);
+    if(settings.trails)updateTrail(id,f,selected);
   }
 
   for(const [id,m] of markers){
@@ -368,7 +368,7 @@ function renderFlights(){
   renderTrafficList();
 }
 
-function updateTrail(id,f){
+function updateTrail(id,f,selected){
   const lat=Number(f.latitude),lon=normLon(f.longitude),h=trailHistory.get(id)||[],last=h[h.length-1];
   if(!last||Math.abs(last[0]-lat)>.0001||Math.abs(last[1]-lon)>.0001){
     h.push([lat,lon]);
@@ -388,9 +388,9 @@ function updateTrail(id,f){
 
   let line=trails.get(id);
   if(!line){
-    line=L.polyline(parts,{weight:2,opacity:.38,color:"#ffd43b",interactive:false,noClip:false}).addTo(map);
+    line=L.polyline(parts,{weight:selected?2.5:1.6,opacity:selected?.72:.28,color:selected?"#ffd43b":"#8ea3b8",interactive:false,noClip:false}).addTo(map);
     trails.set(id,line);
-  }else line.setLatLngs(parts);
+  }else { line.setLatLngs(parts); line.setStyle({weight:selected?2.5:1.6,opacity:selected?.72:.28,color:selected?"#ffd43b":"#8ea3b8"}); }
 }
 
 function selectFlight(f){
