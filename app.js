@@ -527,25 +527,41 @@ function updateTrail(id,f,selected){
   const lat=Number(f.latitude),lon=normLon(f.longitude),h=trailHistory.get(id)||[],last=h[h.length-1];
   if(!last||Math.abs(last[0]-lat)>.0001||Math.abs(last[1]-lon)>.0001){
     h.push([lat,lon]);
-    if(h.length>30)h.shift();
+    if(h.length>80)h.shift();
     trailHistory.set(id,h);
   }
 
   const parts=[];
-  let cur=[h[0]];
-  for(let i=1;i<h.length;i++){
-    if(Math.abs(h[i][1]-h[i-1][1])>180){
+  let cur=[];
+  for(let i=0;i<h.length;i++){
+    if(i>0&&Math.abs(h[i][1]-h[i-1][1])>180){
       if(cur.length>1)parts.push(cur);
-      cur=[h[i]];
-    }else cur.push(h[i]);
+      cur=[];
+    }
+    cur.push(h[i]);
   }
   if(cur.length>1)parts.push(cur);
 
   let line=trails.get(id);
   if(!line){
-    line=L.polyline(parts,{weight:selected?2.5:1.6,opacity:selected?.72:.28,color:selected?"#ffd43b":"#8ea3b8",interactive:false,noClip:false}).addTo(map);
+    line=L.polyline(parts,{
+      weight:selected?3:1.4,
+      opacity:selected?.9:.22,
+      color:selected?"#ffd43b":"#8ea3b8",
+      interactive:false,
+      noClip:false,
+      lineCap:"round",
+      lineJoin:"round"
+    }).addTo(map);
     trails.set(id,line);
-  }else { line.setLatLngs(parts); line.setStyle({weight:selected?2.5:1.6,opacity:selected?.72:.28,color:selected?"#ffd43b":"#8ea3b8"}); }
+  }else{
+    line.setLatLngs(parts);
+    line.setStyle({
+      weight:selected?3:1.4,
+      opacity:selected?.9:.22,
+      color:selected?"#ffd43b":"#8ea3b8"
+    });
+  }
 }
 
 function selectFlight(f){
@@ -566,7 +582,14 @@ function focusFlight(f){
   touch();
   if(!validPos(f))return;
   selectFlight(f);
-  map.setView([Number(f.latitude),normLon(f.longitude)],Math.max(map.getZoom(),8),{animate:false});
+
+  // Selecting a flight must not unexpectedly zoom the whole map. Keep the
+  // user's current zoom and only pan when the aircraft is outside the viewport.
+  const point=L.latLng(Number(f.latitude),normLon(f.longitude));
+  if(!map.getBounds().pad(-0.08).contains(point)){
+    map.panTo(point,{animate:false});
+  }
+
   loadFlightDetail(f);
 }
 
@@ -813,26 +836,57 @@ function splitRoutePoints(points){
 }
 function drawRoute(f){
   clearRoute();
-  const planned=(f.plan_waypoints||[]).map(p=>[Number(p.latitude),normLon(p.longitude)]);
-  const actual=(f.route||[]).map(p=>[Number(p.latitude),normLon(p.longitude)]);
+
+  const planned=(f.plan_waypoints||[])
+    .map(p=>[Number(p.latitude),normLon(p.longitude)])
+    .filter(p=>Number.isFinite(p[0])&&Number.isFinite(p[1]));
+  const actual=(f.route||[])
+    .map(p=>[Number(p.latitude),normLon(p.longitude)])
+    .filter(p=>Number.isFinite(p[0])&&Number.isFinite(p[1]));
+
   const plannedParts=splitRoutePoints(planned);
   const actualParts=splitRoutePoints(actual);
-  for(const part of plannedParts)routeLayers.push(L.polyline(part,{weight:3,opacity:.72,color:"#d08cff",dashArray:"7 6",interactive:false}).addTo(map));
-  for(const part of actualParts)routeLayers.push(L.polyline(part,{weight:2.2,opacity:.58,color:"#ffd43b",interactive:false}).addTo(map));
-  (f.plan_waypoints||[]).slice(0,120).forEach((w,i)=>{
-    const lat=Number(w.latitude),lon=normLon(w.longitude);
-    if(!Number.isFinite(lat)||!Number.isFinite(lon))return;
-    const m=L.circleMarker([lat,lon],{
-      radius:i===0||i===f.plan_waypoints.length-1?4:3,
-      weight:1,color:"#fff",fillColor:"#d08cff",fillOpacity:.92,interactive:false
-    });
-    const eta=f.waypoint_eta?.find(x=>String(x.identifier||"")===String(w.identifier||""))?.eta_minutes;
-    m.bindTooltip(String(w.identifier||w.name||("WP "+(i+1)))+" · ETA "+(eta==null?"—":num(eta)+" min"),{direction:"top"});
-    routeLayers.push(m.addTo(map));
-  });
-  const boundsPoints=planned.length?planned:actual;
-  if(!boundsPoints.length){error("No route or flight plan is available for this flight.");return;}
-  map.fitBounds(L.latLngBounds(boundsPoints),{padding:[40,40],maxZoom:8,animate:false});
+
+  // FR24-style presentation: the flown trail is the prominent line, while
+  // the planned route stays thin and subdued. Do not dump waypoint dots all
+  // over the map and never auto-fit the map to a selected flight.
+  for(const part of plannedParts){
+    routeLayers.push(L.polyline(part,{
+      weight:1.5,
+      opacity:.32,
+      color:"#a78bfa",
+      dashArray:"4 7",
+      lineCap:"round",
+      lineJoin:"round",
+      interactive:false,
+      noClip:false
+    }).addTo(map));
+  }
+
+  for(const part of actualParts){
+    routeLayers.push(L.polyline(part,{
+      weight:5,
+      opacity:.16,
+      color:"#ffd43b",
+      lineCap:"round",
+      lineJoin:"round",
+      interactive:false,
+      noClip:false
+    }).addTo(map));
+    routeLayers.push(L.polyline(part,{
+      weight:2.5,
+      opacity:.92,
+      color:"#ffd43b",
+      lineCap:"round",
+      lineJoin:"round",
+      interactive:false,
+      noClip:false
+    }).addTo(map));
+  }
+
+  if(!planned.length&&!actual.length){
+    error("No route or flight plan is available for this flight.");
+  }
 }
 
 function airportIconForZoom(a){
