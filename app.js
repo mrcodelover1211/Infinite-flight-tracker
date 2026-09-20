@@ -31,9 +31,15 @@ map.getPane("airportPane").style.zIndex="650";
 
 const $=id=>document.getElementById(id);
 const markers=new Map();
-const aircraftPhotoCache=new Map();
 const airportMarkers=new Map();
 const airportFlightCache=new Map();
+
+function shredClientCaches(){
+  // Deliberately destroy transient client-side caches after each live response.
+  try{ airportFlightCache.clear(); }catch{}
+  try{ if(window.caches) caches.keys().then(keys=>keys.forEach(k=>caches.delete(k))).catch(()=>{}); }catch{}
+  try{ if(performance?.clearResourceTimings) performance.clearResourceTimings(); }catch{}
+}
 const atcMarkers=new Map();
 const trails=new Map();
 const trailHistory=new Map();
@@ -809,7 +815,6 @@ async function loadAircraftPhoto(f,attempt=0){
         verified:true,
         score:100
       };
-      aircraftPhotoCache.set(key,registrationPhoto);
       if(box.dataset.flightId===flightKey)renderAircraftPhoto(box,registrationPhoto);
       return;
     }
@@ -851,7 +856,7 @@ async function loadAircraftPhoto(f,attempt=0){
           const url="https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrsearch="+
             encodeURIComponent(query)+
             "&gsrlimit=50&gsrwhat=text&prop=imageinfo|info&inprop=url&iiprop=url|mime&iiurlwidth=1200&format=json&origin=*";
-          const r=await fetch(url,{cache:"force-cache"});
+          const r=await fetch(url+"?tracker_nocache="+Date.now()+"_"+Math.random().toString(36).slice(2),{cache:"no-store"});
           if(!r.ok)return [];
           const d=await r.json();
           return Object.values(d.query?.pages||{});
@@ -953,7 +958,6 @@ async function loadAircraftPhoto(f,attempt=0){
     }:null;
 
     if(photo){
-      aircraftPhotoCache.set(key,photo);
       if(box.dataset.flightId===flightKey)renderAircraftPhoto(box,photo);
       return;
     }
@@ -1439,7 +1443,6 @@ function renderAirport(d){
   airportFlightCache.clear();
   list.forEach(x=>{
     const f=x.flight||{};
-    if(f.flight_id)airportFlightCache.set(String(f.flight_id),f);
   });
   const lat=Number(a.latitude),lon=normLon(a.longitude);
   const traffic=(Number(d.inbound_count)||0)+(Number(d.outbound_count)||0);
@@ -1509,7 +1512,6 @@ function renderAirport(d){
   loadAirportPhoto(a);
 }
 
-const airportPhotoCache=new Map();
 async function loadAirportPhoto(a){
   const box=$("airportPhoto");
   if(!box)return;
@@ -1531,7 +1533,7 @@ async function loadAirportPhoto(a){
       const url="https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch="+
         encodeURIComponent(query)+
         "&gsrlimit=10&prop=pageimages|pageterms|info&inprop=url&piprop=thumbnail&pilimit=10&pithumbsize=900&wbptterms=description&format=json&origin=*";
-      const r=await fetch(url,{cache:"force-cache"});
+      const r=await fetch(url+"?tracker_nocache="+Date.now()+"_"+Math.random().toString(36).slice(2),{cache:"no-store"});
       const d=await r.json();
       candidates.push(...Object.values(d.query?.pages||{}));
       if(candidates.length>=10)break;
@@ -1560,7 +1562,6 @@ async function loadAirportPhoto(a){
       title:best.title||name||icao,
       url:best.fullurl||("https://en.wikipedia.org/wiki/"+encodeURIComponent(best.title||""))
     }:null;
-    airportPhotoCache.set(key,photo);
     renderAirportPhoto(box,photo);
   }catch{
     try{
@@ -1577,10 +1578,8 @@ async function loadAirportPhoto(a){
       });
       const info=valid?.imageinfo?.[0];
       const photo=valid&&info?{src:info.thumburl||info.url,title:valid.title||name||icao,url:info.descriptionurl||info.url}:null;
-      airportPhotoCache.set(key,photo);
       renderAirportPhoto(box,photo);
     }catch{
-      airportPhotoCache.set(key,null);
       renderAirportPhoto(box,null);
     }
   }
