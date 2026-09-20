@@ -142,3 +142,9 @@ async function loadAirport(icao){
   try{const r=await fetch(API+"?detail=airport&airport="+encodeURIComponent(icao),{cache:"no-store"});const d=await r.json();if(!r.ok)throw new Error(d.message||"Airport unavailable");renderAirportResults(d)}catch(e){$("airportPanel").innerHTML='<div class="error">'+escapeHtml(e.message)+'</div>'}
 }
 $("airportBtn").addEventListener("click",()=>{const q=$("search").value.trim().toUpperCase();if(/^[A-Z]{4}$/.test(q))loadAirport(q);else $("search").focus()});
+
+
+// Live aircraft history trails
+const trailLayer=L.layerGroup().addTo(map),trailHistory=new Map(),trailLines=new Map();
+function updateTrails(flights){for(const f of flights){const id=String(f.flight_id||''),lat=Number(f.latitude),lon=Number(f.longitude);if(!id||!Number.isFinite(lat)||!Number.isFinite(lon))continue;const h=trailHistory.get(id)||[];const last=h[h.length-1];if(!last||Math.abs(last[0]-lat)>1e-5||Math.abs(last[1]-lon)>1e-5){h.push([lat,lon]);if(h.length>80)h.shift();trailHistory.set(id,h)}let line=trailLines.get(id);if(!line){line=L.polyline(h,{color:'#9aa3ad',weight:2,opacity:.65}).addTo(trailLayer);trailLines.set(id,line)}else line.setLatLngs(h)}for(const [id,line] of trailLines){if(!flights.some(f=>String(f.flight_id||'')===id)){trailLayer.removeLayer(line);trailLines.delete(id);trailHistory.delete(id)}}}
+const _load=load;load=async function(){await _load();updateTrails(visibleFlights)};
