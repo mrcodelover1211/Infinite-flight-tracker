@@ -12,14 +12,14 @@
   <div class="brand"><strong>✈ Infinite Flight Tracker</strong><span id="status" class="status">Connecting…</span></div>
   <div class="controls">
     <input id="search" autocomplete="off" placeholder="Search callsign, airline, aircraft, livery or airport">
-    <button id="searchBtn">Search</button><button id="resetBtn">Show all</button><button id="fitBtn">Fit aircraft</button><button id="airportBtn">Airport</button>
+    <button id="searchBtn">Search</button><button id="resetBtn">Show all</button><button id="fitBtn">Fit aircraft</button><button id="airportBtn" aria-expanded="false">✈ Airport</button>
   </div>
 </header>
 <main>
   <section id="map" aria-label="Live aircraft map"></section>
   <aside id="panel">
     <div class="panel-head"><div><h2>Live flights</h2><div id="summary">Waiting for live data…</div></div><button id="refreshBtn" class="icon-btn" title="Refresh now">↻</button></div>
-    <div id="error" class="error hidden"></div><div id="details" class="empty">Select an aircraft on the map.</div><div id="airportPanel" class="airport-panel hidden"></div>
+    <div id="airportSearch" class="airport-search hidden"><input id="airportInput" maxlength="4" autocomplete="off" placeholder="ICAO airport, e.g. LTFM"><button id="airportGo">Open airport</button></div><div id="error" class="error hidden"></div><div id="details" class="empty">Select an aircraft on the map.</div><div id="airportPanel" class="airport-panel hidden"></div>
   </aside>
 </main>
 <footer><span>Live data from Infinite Flight Live API · © OpenStreetMap contributors</span><span id="updated">Not updated yet</span></footer>
