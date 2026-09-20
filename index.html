@@ -1,31 +1,27 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="description" content="Live Infinite Flight flight tracker">
 <title>Infinite Flight Tracker</title>
 <link rel="stylesheet" href="styles.css">
 <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
 </head>
 <body>
 <header class="topbar">
-  <div><strong>✈ Infinite Flight Tracker</strong><span id="status">Connecting…</span></div>
+  <div class="brand"><strong>✈ Infinite Flight Tracker</strong><span id="status" class="status">Connecting…</span></div>
   <div class="controls">
-    <input id="search" placeholder="Search callsign, username or flight ID">
-    <button id="searchBtn">Search</button>
-    <button id="resetBtn">Show all</button>
+    <input id="search" autocomplete="off" placeholder="Callsign, username or flight ID">
+    <button id="searchBtn">Search</button><button id="resetBtn">Show all</button><button id="fitBtn">Fit aircraft</button>
   </div>
 </header>
 <main>
-  <section id="map"></section>
+  <section id="map" aria-label="Live aircraft map"></section>
   <aside id="panel">
-    <h2>Live flights</h2>
-    <div id="summary">Loading…</div>
-    <div id="details">Select an aircraft on the map.</div>
+    <div class="panel-head"><div><h2>Live flights</h2><div id="summary">Waiting for live data…</div></div><button id="refreshBtn" class="icon-btn" title="Refresh now">↻</button></div>
+    <div id="error" class="error hidden"></div><div id="details" class="empty">Select an aircraft on the map.</div>
   </aside>
 </main>
-<footer>Live data • Infinite Flight Live API • Updates no faster than the permitted API cadence</footer>
-<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-<script src="app.js"></script>
-</body>
-</html>
+<footer><span>Live data from Infinite Flight Live API</span><span id="updated">Not updated yet</span></footer>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script><script src="app.js"></script>
+</body></html>
