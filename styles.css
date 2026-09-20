@@ -292,3 +292,14 @@ body[data-device="phone"] .check-row{height:36px;font-size:10px}
   .booking-options-grid{grid-template-columns:1fr}
   .booking-card{max-height:62vh}
 }
+
+/* Clear top navigation: keep action names readable on touch devices. */
+.top-controls{overflow-x:auto;scrollbar-width:thin}
+.top-btn{white-space:nowrap}
+@media(max-width:800px){
+  .top-controls{padding-bottom:2px}
+  .top-btn{min-height:38px;padding:0 10px}
+}
+@media(max-width:520px){
+  .top-btn{font-size:10px;padding:0 8px}
+}
