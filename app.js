@@ -1942,6 +1942,7 @@ $("listBtn").onclick=toggleList;
 $("recentBtn").onclick=openRecentFlights;
 $("searchTopBtn").onclick=()=>{
   touch();
+  trafficListMode="live";
   listVisible=true;
   $("listBtn").classList.add("active");
   renderTrafficList();
@@ -1962,6 +1963,7 @@ $("layersBtn").onclick=openSettings;
 
 $("settingsSearchBtn").onclick=()=>{
   closeSettings();
+  trafficListMode="live";
   listVisible=true;
   $("listBtn").classList.add("active");
   renderTrafficList();
