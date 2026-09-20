@@ -16,10 +16,9 @@ const map = L.map("map", {
   preferCanvas: true,
   renderer: L.canvas({ padding: 0.25 }),
   maxBounds: [[-85, -180], [85, 180]],
-  maxBoundsViscosity: 1,
+  maxBoundsViscosity: 0.85,
   minZoom: 2,
-  maxZoom: 12,
-  maxBoundsViscosity: 0.85
+  maxZoom: 12
 }).setView([20, 0], 2);
 
 L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", {
@@ -105,7 +104,9 @@ function serverIndex(server) {
 function syncServerUI() {
   const index = serverIndex(selectedServer);
   $("serverSlider").value = String(index);
-  $("serverLabel").textContent = selectedServer[0].toUpperCase() + selectedServer.slice(1);
+  const displayName = selectedServer[0].toUpperCase() + selectedServer.slice(1);
+  $("serverLabel").textContent = displayName;
+  $("serverLabelMirror").textContent = displayName;
   $("serverHint").textContent = isLowPowerDevice
     ? "Canvas mode · low-power optimized"
     : "Canvas mode · performance optimized";
@@ -259,9 +260,25 @@ function updateMarker(marker, f, selected = false) {
   const lat = Number(f.latitude);
   const lon = normLon(f.longitude);
   if (!Number.isFinite(lat) || lat < -90 || lat > 90 || !Number.isFinite(lon)) return;
-  marker.setLatLng([lat, lon]);
-  marker.setStyle(markerStyle(f, selected));
-  marker.setTooltipContent(f.callsign || f.username || "Flight");
+
+  if (marker._lat !== lat || marker._lon !== lon) {
+    marker.setLatLng([lat, lon]);
+    marker._lat = lat;
+    marker._lon = lon;
+  }
+
+  const styleKey = typeClass(f) + ":" + (selected ? "selected" : "normal");
+  if (marker._styleKey !== styleKey) {
+    marker.setStyle(markerStyle(f, selected));
+    marker._styleKey = styleKey;
+  }
+
+  const label = f.callsign || f.username || "Flight";
+  if (marker._tooltipText !== label) {
+    marker.setTooltipContent(label);
+    marker._tooltipText = label;
+  }
+
   if (selected) marker.bringToFront();
 }
 
