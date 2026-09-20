@@ -148,3 +148,14 @@ $("airportBtn").addEventListener("click",()=>{const q=$("search").value.trim().t
 const trailLayer=L.layerGroup().addTo(map),trailHistory=new Map(),trailLines=new Map();
 function updateTrails(flights){for(const f of flights){const id=String(f.flight_id||''),lat=Number(f.latitude),lon=Number(f.longitude);if(!id||!Number.isFinite(lat)||!Number.isFinite(lon))continue;const h=trailHistory.get(id)||[];const last=h[h.length-1];if(!last||Math.abs(last[0]-lat)>1e-5||Math.abs(last[1]-lon)>1e-5){h.push([lat,lon]);if(h.length>80)h.shift();trailHistory.set(id,h)}let line=trailLines.get(id);if(!line){line=L.polyline(h,{color:'#9aa3ad',weight:2,opacity:.65}).addTo(trailLayer);trailLines.set(id,line)}else line.setLatLngs(h)}for(const [id,line] of trailLines){if(!flights.some(f=>String(f.flight_id||'')===id)){trailLayer.removeLayer(line);trailLines.delete(id);trailHistory.delete(id)}}}
 const _load=load;load=async function(){await _load();updateTrails(visibleFlights)};
+
+
+function renderAirportPanel(icao){
+  const q=String(icao||"").trim().toUpperCase();
+  const departures=allFlights.filter(f=>String(f.origin_airport||f.origin||f.departure_airport||"").toUpperCase()===q);
+  const arrivals=allFlights.filter(f=>String(f.destination_airport||f.destination||f.arrival_airport||"").toUpperCase()===q);
+  const p=$("airportPanel");p.classList.remove("hidden");
+  const list=(title,data)=>'<h3>'+title+' ('+data.length+')</h3>'+ (data.length?data.map(f=>'<div class="flight-row"><div class="flight-main"><strong>'+escapeHtml(f.callsign||f.username||"Flight")+'</strong><span class="route-badge">'+escapeHtml(flightRouteText(f))+'</span></div><div class="muted">'+escapeHtml(f.username||"")+' · '+formatNumber(f.speed_kt)+' kt · '+formatNumber(f.altitude_ft)+' ft</div></div>').join(""):'<div class="empty">No matching live flights in the current feed.</div>');
+  p.innerHTML='<div class="airport-title">'+escapeHtml(q)+'</div>'+list("Departures",departures)+list("Arrivals",arrivals)+'<div class="muted">Live feed only. No invented scheduled flights.</div>';
+}
+$("airportBtn").addEventListener("click",()=>{const q=$("search").value.trim();if(q.length===4)renderAirportPanel(q);});
