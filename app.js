@@ -315,7 +315,9 @@ function createPlaneMarker(f){
   marker._heading=Number(f.heading_deg??f.track_deg??0);
   marker._targetHeading=marker._heading;
   marker._reportedAt=reportEpoch(f.last_report);
-  marker.bindTooltip(labelForFlight(f),{direction:"top",sticky:true,opacity:.92});
+  // The marker already renders the callsign when selected. Do not add a
+  // second Leaflet tooltip, otherwise one aircraft gets two labels stacked
+  // on top of each other.
   marker.on("click",e=>{
     touch();
     // The hitbox belongs to this marker, so keep the event tied to its flight.
