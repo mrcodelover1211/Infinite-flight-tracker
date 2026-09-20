@@ -339,9 +339,21 @@ function render(flights) {
   }
 }
 
+function selectFlight(f) {
+  const previousId = String(selectedFlight?.flight_id || "");
+  const nextId = String(f?.flight_id || "");
+  if (previousId && previousId !== nextId) {
+    const oldLine = trailLines.get(previousId);
+    if (oldLine) map.removeLayer(oldLine);
+    trailLines.delete(previousId);
+    trailHistory.delete(previousId);
+  }
+  selectedFlight = f;
+}
+
 function followFlight(f) {
   followingFlightId = String(f.flight_id || "");
-  selectedFlight = f;
+  selectFlight(f);
   const lat = Number(f.latitude);
   const lon = normLon(f.longitude);
   if (Number.isFinite(lat) && Number.isFinite(lon)) {
@@ -441,7 +453,7 @@ async function showWikiPhoto(f) {
 }
 
 async function loadFlightDetail(f, force = false) {
-  selectedFlight = f;
+  selectFlight(f);
   const key = selectedServer + ":" + String(f.flight_id || "");
   const cached = detailCache.get(key);
 
