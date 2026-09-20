@@ -32,6 +32,7 @@ map.getPane("airportPane").style.zIndex="650";
 const $=id=>document.getElementById(id);
 const markers=new Map();
 const aircraftPhotoCache=new Map();
+const aircraftPhotoLiveryMemory=new Map();
 const airportMarkers=new Map();
 const airportFlightCache=new Map();
 const atcMarkers=new Map();
@@ -726,14 +727,17 @@ async function loadAircraftPhoto(f,attempt=0){
   if(box.dataset.flightId!==flightKey)return;
 
   const aircraft=String(f.aircraft_type||"aircraft").trim();
-  const livery=String(f.livery_name||"").trim();
+  const flightLivery=String(f.livery_name||"").trim();
+  const validLivery=flightLivery && !/^(livery unavailable|unknown|n\/a|null)$/i.test(flightLivery);
+  const memoryKeys=["flight:"+flightKey,"aircraft:"+aircraft.toLowerCase()];
+  if(validLivery) for(const k of memoryKeys) aircraftPhotoLiveryMemory.set(k,flightLivery);
+  const livery=validLivery
+    ? flightLivery
+    : (memoryKeys.map(k=>aircraftPhotoLiveryMemory.get(k)).find(Boolean)||"");
 
-  // A model-only photo is not good enough for a live flight card. If the
-  // Live API cannot resolve the livery, do not guess one and accidentally
-  // show ANA/KLM/etc. for somebody else. Wait for the next live refresh.
-  if(!livery || /^(livery unavailable|unknown|n\/a|null)$/i.test(livery)){
-    aircraftPhotoCache.set((aircraft+"|").toLowerCase(),null);
-    box.innerHTML='<div class="aircraft-photo-empty">Livery unavailable, so no unverified aircraft photo is shown.</div>';
+  if(!livery){
+    box.innerHTML='<div class="aircraft-photo-empty">Waiting for a verified livery… searching again.</div>';
+    setTimeout(()=>loadAircraftPhoto(f,attempt+1),7000);
     return;
   }
 
@@ -772,24 +776,49 @@ async function loadAircraftPhoto(f,attempt=0){
     const queries=[...new Set([
       [livery,aircraft].filter(Boolean).join(" "),
       [aircraft,livery].filter(Boolean).join(" "),
+      '"'+livery+'" "'+aircraft+'"',
       livery+" "+modelAliases[1],
+      livery+" Airbus A330",
+      livery+" A330-300",
+      livery+" A330-200",
+      livery+" A330",
       livery+" aircraft",
       ...modelAliases.map(x=>x+" "+livery),
       ...modelAliases.map(x=>x+" aircraft "+livery)
     ].filter(Boolean))];
 
+    // Search only Wikimedia's file namespace and inspect up to 100 unique
+    // image candidates. The old search could return article pages with
+    // thumbnails, which is why a perfectly real KLM A330 could still miss.
     const candidates=[];
-    for(const query of queries){
-      const url="https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch="+
-        encodeURIComponent(query)+
-        "&gsrlimit=10&prop=pageimages|pageterms|info&inprop=url&piprop=thumbnail&pilimit=10&pithumbsize=900&wbptterms=description&format=json&origin=*";
-      const r=await fetch(url,{cache:"force-cache"});
-      if(!r.ok)continue;
-      const d=await r.json();
-      for(const p of Object.values(d.query?.pages||{})){
-        if(p?.thumbnail?.source)candidates.push(p);
+    const seenCandidateTitles=new Set();
+    for(let offset=0;offset<queries.length && candidates.length<100;offset+=4){
+      const batch=queries.slice(offset,offset+4);
+      const results=await Promise.all(batch.map(async query=>{
+        try{
+          const url="https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrsearch="+
+            encodeURIComponent(query)+
+            "&gsrlimit=50&gsrwhat=text&prop=imageinfo|info&inprop=url&iiprop=url|mime&iiurlwidth=1200&format=json&origin=*";
+          const r=await fetch(url,{cache:"force-cache"});
+          if(!r.ok)return [];
+          const d=await r.json();
+          return Object.values(d.query?.pages||{});
+        }catch{
+          return [];
+        }
+      }));
+      for(const pages of results){
+        for(const p of pages){
+          const title=String(p?.title||"").trim().toLowerCase();
+          const info=Array.isArray(p?.imageinfo)?p.imageinfo[0]:null;
+          const src=info?.thumburl||info?.url||"";
+          if(!title||!src||seenCandidateTitles.has(title))continue;
+          seenCandidateTitles.add(title);
+          candidates.push({...p,imageinfo:info});
+          if(candidates.length>=100)break;
+        }
+        if(candidates.length>=100)break;
       }
-      if(candidates.length>=60)break;
     }
 
     const aircraftWords=/\b(aircraft|airliner|airplane|aeroplane|aviation|jet|helicopter)\b/i;
@@ -798,7 +827,9 @@ async function loadAircraftPhoto(f,attempt=0){
     const scored=candidates.map(p=>{
       const title=String(p.title||"");
       const description=String(p.terms?.description?.[0]||"");
-      const text=(title+" "+description).toLowerCase();
+      const imageInfo=p.imageinfo||{};
+      const imageMeta=String(imageInfo.mime||"")+" "+String(imageInfo.url||"");
+      const text=(title+" "+description+" "+imageMeta).toLowerCase();
       const titleNorm=norm(title);
       let score=0;
       const modelEvidence=modelAliases.some(alias=>{
@@ -881,15 +912,16 @@ async function loadAircraftPhoto(f,attempt=0){
     if(box.dataset.flightId===flightKey){
       box.innerHTML='<div class="aircraft-photo-empty">Searching for a verified '+esc(livery)+' '+esc(aircraft)+' photo…</div>';
     }
-    if(attempt<7){
-      setTimeout(()=>loadAircraftPhoto(f,attempt+1),7000);
+    if(box.dataset.flightId===flightKey){
+      const seconds=Math.min(30,7+attempt*2);
+      box.innerHTML='<div class="aircraft-photo-empty">Searching 100+ verified photo candidates for '+esc(livery)+' '+esc(aircraft)+'…</div>';
+      setTimeout(()=>loadAircraftPhoto(f,attempt+1),seconds*1000);
     }
   }catch{
     if(box.dataset.flightId===flightKey){
+      const seconds=Math.min(30,7+attempt*2);
       box.innerHTML='<div class="aircraft-photo-empty">Photo search temporarily failed. Retrying…</div>';
-    }
-    if(attempt<7){
-      setTimeout(()=>loadAircraftPhoto(f,attempt+1),7000);
+      setTimeout(()=>loadAircraftPhoto(f,attempt+1),seconds*1000);
     }
   }
 }
