@@ -125,3 +125,82 @@ footer{height:28px;background:#070a0f;border-top:1px solid #202936;color:#687587
   .segmented{grid-template-columns:1fr 1fr 1fr}
   .settings-modal{padding:11px}
 }
+
+/* Adaptive device layouts */
+html,body{min-height:100dvh}
+main{height:calc(100dvh - 100px)}
+.topbar{padding-left:max(12px,env(safe-area-inset-left));padding-right:max(12px,env(safe-area-inset-right))}
+footer{padding-left:max(10px,env(safe-area-inset-left));padding-right:max(10px,env(safe-area-inset-right))}
+
+body[data-device="desktop"] main{grid-template-columns:minmax(0,1fr) 390px}
+body[data-device="desktop"] #panel{position:relative;right:auto;top:auto;bottom:auto;max-height:none;width:auto;border-radius:0;box-shadow:none}
+
+body[data-device="tablet"] .topbar{height:74px}
+body[data-device="tablet"] main{height:calc(100dvh - 102px);grid-template-columns:1fr}
+body[data-device="tablet"] #panel{
+  position:absolute;z-index:1500;right:10px;top:84px;bottom:auto;
+  width:min(390px,calc(100% - 20px));max-height:58dvh;
+  border:1px solid #283443;border-radius:11px;box-shadow:0 10px 34px #0009
+}
+body[data-device="tablet"] .brand strong{font-size:15px}
+body[data-device="tablet"] .top-controls{max-width:66vw}
+body[data-device="tablet"][data-orientation="portrait"] #panel{
+  left:8px;right:8px;top:auto;bottom:8px;width:auto;max-height:44dvh
+}
+body[data-device="tablet"][data-orientation="portrait"] .top-controls{max-width:none}
+
+body[data-device="phone"] .topbar{
+  height:94px;display:block;padding-top:max(7px,env(safe-area-inset-top));padding-bottom:6px
+}
+body[data-device="phone"] .brand{height:30px;min-width:0}
+body[data-device="phone"] .brand strong{font-size:14px}
+body[data-device="phone"] .brand .status{display:none}
+body[data-device="phone"] .top-controls{
+  width:100%;height:49px;max-width:none;gap:5px;overflow-x:auto;justify-content:flex-start
+}
+body[data-device="phone"] .server-picker{flex:0 0 auto}
+body[data-device="phone"] .server-btn,
+body[data-device="phone"] .top-btn{height:32px;padding:0 8px;font-size:11px}
+body[data-device="phone"] main{height:calc(100dvh - 122px);grid-template-columns:1fr}
+body[data-device="phone"] #panel{
+  position:absolute;z-index:1500;left:6px;right:6px;top:auto;bottom:max(6px,env(safe-area-inset-bottom));
+  width:auto;max-height:42dvh;min-height:0;border:1px solid #2a3746;border-radius:11px;
+  box-shadow:0 10px 34px #000a;padding:9px
+}
+body[data-device="phone"] .panel-head h2{font-size:16px}
+body[data-device="phone"] #summary{font-size:10px}
+body[data-device="phone"] .server-status{padding:6px 0;font-size:10px}
+body[data-device="phone"] .search-row{grid-template-columns:minmax(0,1fr) auto}
+body[data-device="phone"] .search-row .secondary-btn{display:none}
+body[data-device="phone"] .search-row input,
+body[data-device="phone"] .search-row button{height:32px;font-size:12px}
+body[data-device="phone"] .airport-search{padding:6px;margin-top:6px}
+body[data-device="phone"] .traffic-list{margin-top:7px;max-height:24dvh;overflow:auto}
+body[data-device="phone"] .flight-row{padding:7px 8px}
+body[data-device="phone"] .card{margin-top:7px;padding:9px}
+body[data-device="phone"] .grid{gap:7px}
+body[data-device="phone"] .value{font-size:12px}
+body[data-device="phone"] .detail-actions{gap:5px;margin-top:7px}
+body[data-device="phone"] .small-btn{padding:5px 7px;font-size:11px}
+body[data-device="phone"] .airport-panel{max-height:27dvh}
+body[data-device="phone"] footer{height:28px;font-size:9px}
+body[data-device="phone"] footer span:first-child{max-width:70%;overflow:hidden;text-overflow:ellipsis}
+body[data-device="phone"] .settings-modal,
+body[data-device="tablet"] .settings-modal{width:min(760px,100%);max-height:calc(100dvh - 24px);overflow:auto}
+body[data-device="phone"] .overlay{padding:12px 8px;align-items:flex-start}
+body[data-device="phone"] .settings-modal{padding:10px;border-radius:11px}
+body[data-device="phone"] .settings-grid,
+body[data-device="phone"] .settings-grid.two,
+body[data-device="phone"] .settings-grid.three{grid-template-columns:1fr 1fr}
+body[data-device="phone"] .settings-grid.three{grid-template-columns:1fr 1fr}
+body[data-device="phone"] .data-grid,
+body[data-device="phone"] .stats-grid{grid-template-columns:1fr 1fr}
+body[data-device="phone"] .settings-grid button,
+body[data-device="phone"] .settings-grid input,
+body[data-device="phone"] .settings-actions button,
+body[data-device="phone"] .segmented button{height:36px;font-size:11px}
+body[data-device="phone"] .check-row{height:36px;font-size:10px}
+
+@media (min-width:601px) and (max-width:1100px) and (pointer:coarse){
+  body[data-device="tablet"] .aircraft-marker{--plane-size:14px}
+}
