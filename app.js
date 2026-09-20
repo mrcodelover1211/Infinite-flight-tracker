@@ -673,7 +673,7 @@ function renderDetails(f){
   const favorite=sessionFavorites.has(String(f.flight_id));
   $("details").className="";
   $("details").innerHTML='<div class="card">'+
-    '<div class="detail-header"><div><div class="aircraft">'+esc(f.callsign||labelForFlight(f)||"Unknown flight")+'</div><div class="muted">'+esc(f.aircraft_type||"Unknown plane")+' · '+esc(f.livery_name||"Livery unavailable")+(f.livery_source==="operator_inference"?' · inferred':'')+'</div></div>'+addStatusBadge(f)+'</div>'+
+    '<div class="detail-header"><div><div class="aircraft">'+esc(f.callsign||labelForFlight(f)||"Unknown flight")+'</div><div class="muted">'+esc(f.aircraft_type||"Unknown plane")+' · '+esc(f.livery_name||"Livery unavailable")+(f.livery_source==="live_api"||f.livery_source==="live_api_match"?' · verified':'')+'</div></div>'+addStatusBadge(f)+'</div>'+
     '<div id="aircraftPhoto" class="aircraft-photo" data-flight-id="'+esc(String(f.flight_id||""))+'"><div class="aircraft-photo-loading">Loading aircraft photo…</div></div>'+
     '<div class="chips"><span class="chip">'+esc(displayServer(selectedServer))+'</span><span class="chip">'+esc(f.virtual_organization||"No VA")+'</span><span class="chip">'+esc(aircraftClass(f))+'</span><span class="chip">'+esc(phase(f))+'</span></div>'+
     '<div class="progress-wrap"><div class="progress-track"><div class="progress-fill" style="width:'+(prog==null?0:prog)+'%"></div></div><div class="progress-caption"><span>'+esc(origin)+'</span><b>'+(prog==null?"—":prog.toFixed(1)+"%")+'</b><span>'+esc(dest)+'</span></div></div>'+
@@ -717,7 +717,7 @@ function renderDetails(f){
   loadAircraftPhoto(f);
 }
 
-async function loadAircraftPhoto(f){
+async function loadAircraftPhoto(f,attempt=0){
   const box=$("aircraftPhoto");
   if(!box)return;
   const flightKey=String(f.flight_id||"");
@@ -867,11 +867,28 @@ async function loadAircraftPhoto(f){
       score:chosen.score
     }:null;
 
-    aircraftPhotoCache.set(key,photo);
-    if(box.dataset.flightId===flightKey)renderAircraftPhoto(box,photo);
+    if(photo){
+      aircraftPhotoCache.set(key,photo);
+      if(box.dataset.flightId===flightKey)renderAircraftPhoto(box,photo);
+      return;
+    }
+
+    // Do not declare failure after one search. Wikimedia indexing and
+    // verification sources can disagree temporarily, so keep trying with
+    // the same verified livery rather than showing a dead-end card.
+    if(box.dataset.flightId===flightKey){
+      box.innerHTML='<div class="aircraft-photo-empty">Searching for a verified '+esc(livery)+' '+esc(aircraft)+' photo…</div>';
+    }
+    if(attempt<7){
+      setTimeout(()=>loadAircraftPhoto(f,attempt+1),7000);
+    }
   }catch{
-    aircraftPhotoCache.set(key,null);
-    renderAircraftPhoto(box,null);
+    if(box.dataset.flightId===flightKey){
+      box.innerHTML='<div class="aircraft-photo-empty">Photo search temporarily failed. Retrying…</div>';
+    }
+    if(attempt<7){
+      setTimeout(()=>loadAircraftPhoto(f,attempt+1),7000);
+    }
   }
 }
 function renderAircraftPhoto(box,photo){
