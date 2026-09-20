@@ -195,8 +195,9 @@ async function loadWorld(){
   for(const m of atcMarkers.values())map.removeLayer(m);atcMarkers.clear();
   for(const a of (d.airports||[])){
     const lat=Number(a.latitude),lon=normLon(a.longitude);if(!Number.isFinite(lat)||!Number.isFinite(lon))continue;
-    const marker=L.circleMarker([lat,lon],{radius:5,weight:1,fillOpacity:.65,opacity:.9});
-    marker.bindTooltip(a.icao||a.name||"Airport",{direction:"top"});
+    const label=(a.icao||"APT")+" · "+(Number(a.inbound_count||0)+Number(a.outbound_count||0));
+    const marker=L.marker([lat,lon],{icon:L.divIcon({className:"airport-label-wrap",html:'<button class="airport-label" type="button">'+escapeHtml(label)+'</button>',iconSize:[86,24],iconAnchor:[43,12]})});
+    marker.bindTooltip((a.name||"Airport")+" · "+(a.icao||""),{direction:"top"});
     marker.on("click",()=>loadAirport(a.icao));marker.addTo(map);worldMarkers.set(a.icao||String(lat)+":"+lon,marker);
   }
   for(const a of (d.atc||[])){
