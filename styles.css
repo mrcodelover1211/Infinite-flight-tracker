@@ -342,6 +342,7 @@ body[data-device="phone"] .check-row{height:36px;font-size:10px}
 .detail-header{display:flex;align-items:flex-start;justify-content:space-between;gap:8px}
 .flight-status-badge{font-size:9px;padding:4px 6px;border-radius:999px;border:1px solid #334455;background:#17212d;color:#bfd0df;white-space:nowrap}
 .flight-status-badge.live{background:#153322;border-color:#2e6b47;color:#a6ebbf}
+.flight-status-badge.delayed{background:#332b18;border-color:#6e5b2a;color:#f0d58a}
 .flight-status-badge.stale{background:#352d18;border-color:#735d2d;color:#efd890}
 .flight-status-badge.lost{background:#371b1b;border-color:#733333;color:#ffb0b0}
 .progress-wrap{margin:10px 0 9px}
