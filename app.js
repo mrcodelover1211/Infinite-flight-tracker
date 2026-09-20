@@ -1180,28 +1180,51 @@ async function loadAirport(icao){
 function renderAirport(d){
   const a=d.airport||{};
   const list=airportTab==="arrivals"?d.inbound||[]:d.outbound||[];
-  const lat=Number(a.latitude),lon=Number(a.longitude);
+  const lat=Number(a.latitude),lon=normLon(a.longitude);
+  const traffic=(Number(d.inbound_count)||0)+(Number(d.outbound_count)||0);
+  const airportInfo=[
+    a.iata?("IATA "+a.iata):"",
+    a.city||"",
+    a.country||"",
+    Number.isFinite(Number(a.elevation))?("Elev "+num(a.elevation)+" ft"):""
+  ].filter(Boolean).join(" · ");
+  const rowHtml=list.map(x=>{
+    const f=x.flight||{};
+    const other=airportTab==="arrivals"?(x.origin?.identifier||"Unknown"):(x.destination?.identifier||"Unknown");
+    const distance=validPos(f)&&Number.isFinite(lat)&&Number.isFinite(lon)
+      ?haversineNmClient(Number(f.latitude),normLon(f.longitude),lat,lon):null;
+    const speed=Number(f.speed_kt);
+    const eta=Number.isFinite(distance)&&speed>1?Math.max(0,Math.round(distance/speed*60)):null;
+    return '<div class="flight-row airport-flight-row" data-flight="'+esc(f.flight_id||"")+'">'+
+      '<div class="airport-flight-info">'+
+        '<div class="flight-main"><strong>'+esc(f.callsign||labelForFlight(f)||"Unknown")+'</strong><span>'+esc(other)+'</span></div>'+
+        '<div class="flight-meta">'+esc(f.username||"")+" · "+esc(f.aircraft_type||"")+' · '+(distance==null?"—":num(distance,1)+" NM")+(eta==null?"":" · ETA "+num(eta)+" min")+'</div>'+
+      '</div>'+
+      (airportTab==="departures"?'<div class="airport-flight-action"><button class="small-btn book-flight-btn" data-book-flight="'+esc(f.flight_id||"")+'">Book</button></div>':"")+
+    '</div>';
+  }).join("");
+  const routeCounts=new Map();
+  list.forEach(x=>{
+    const f=x.flight||{};
+    const o=f.origin?.identifier||"----",dst=f.destination?.identifier||"----";
+    const key=o+" → "+dst;
+    routeCounts.set(key,(routeCounts.get(key)||0)+1);
+  });
+  const topRoutes=[...routeCounts.entries()].sort((a,b)=>b[1]-a[1]).slice(0,6);
+  const routeHtml=topRoutes.length
+    ?'<div class="airport-route-network"><div class="detail-section-title">Live route network</div>'+topRoutes.map(r=>'<span class="layer-chip">'+esc(r[0])+' · '+r[1]+'</span>').join(" ")+'</div>'
+    :"";
   $("airportPanel").innerHTML='<div class="airport-title">'+esc(a.icao||"Airport")+'</div>'+
     '<div class="muted">'+esc(a.name||"")+'</div>'+
-    '<div id="airportPhoto" class="airport-photo"><div class="airport-photo-loading">Loading airport photo…</div></div>'+
-    '<div class="airport-location">'+(Number.isFinite(lat)&&Number.isFinite(lon)?lat.toFixed(4)+", "+lon.toFixed(4):"Location unavailable")+'</div>'+
+    '<div class="airport-location">'+esc(airportInfo||"Location unavailable")+'</div>'+
+    '<div class="airport-photo" id="airportPhoto"><div class="airport-photo-loading">Loading airport photo…</div></div>'+
+    '<div class="chips"><span class="chip">'+traffic.toLocaleString()+' live movements</span><span class="chip">'+(d.inbound_count??0)+' arrivals</span><span class="chip">'+(d.outbound_count??0)+' departures</span></div>'+
     '<div class="tabs"><button id="arrivalsTab" class="'+(airportTab==="arrivals"?"active":"")+'">Arrivals ('+(d.inbound_count??0)+')</button>'+
     '<button id="departuresTab" class="'+(airportTab==="departures"?"active":"")+'">Departures ('+(d.outbound_count??0)+')</button></div>'+
-    (list.map(x=>{
-      const f=x.flight||{};
-      const other=airportTab==="arrivals"?(x.origin?.identifier||"Unknown"):(x.destination?.identifier||"Unknown");
-      return '<div class="flight-row airport-flight-row" data-flight="'+esc(f.flight_id||"")+'">'+
-        '<div class="airport-flight-info">'+
-          '<div class="flight-main"><strong>'+esc(f.callsign||"Unknown")+'</strong><span>'+esc(other)+'</span></div>'+
-          '<div class="flight-meta">'+esc(f.username||"")+" · "+esc(f.aircraft_type||"")+'</div>'+
-        '</div>'+
-        (airportTab==="departures"?'<div class="airport-flight-action"><button class="small-btn book-flight-btn" data-book-flight="'+esc(f.flight_id||"")+'">Book</button></div>':"")+
-      '</div>';
-    }).join("")||'<div class="empty">No live flights returned.</div>');
-
+    routeHtml+
+    (rowHtml||'<div class="empty">No live flights returned.</div>');
   $("arrivalsTab").onclick=()=>{touch();airportTab="arrivals";loadAirport(a.icao)};
   $("departuresTab").onclick=()=>{touch();airportTab="departures";loadAirport(a.icao)};
-
   document.querySelectorAll(".airport-flight-row").forEach(row=>{
     row.onclick=(e)=>{
       if(e.target.closest(".book-flight-btn"))return;
@@ -1217,7 +1240,6 @@ function renderAirport(d){
       if(f)openBooking(f,a);
     };
   });
-
   loadAirportPhoto(a);
 }
 
