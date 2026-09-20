@@ -3,7 +3,7 @@
 Last checked: 2026-09-20
 Repository: mrcodelover1211/Infinite-flight-tracker
 Current main HEAD checked: 4b9b45ea57856fd8f365135076044eeec9f8c060
-Latest successful GitHub Pages deployment: run 105, commit 4b9b45ea57856fd8f365135076044eeec9f8c060.
+Latest GitHub Pages deployment in progress: run 109, commit fa196e5ae36f346cb736dffaa70667372782783e. Deployment steps completed successfully; final workflow cleanup is still in progress.
 No local test files or local repo copies should be created. Work directly through GitHub.
 
 ## User's required behavior
@@ -67,10 +67,7 @@ app.js currently queries:
 
 It uses aircraft model + livery evidence and rejects weak candidates. Current verification requires model evidence and, when a livery is supplied, livery evidence.
 
-Important next improvement:
-- These are two endpoints from the same Wikimedia ecosystem, so they are not truly independent sources.
-- The user's requirement is stronger: use multiple genuinely independent sources and only accept an exact image when evidence agrees. Add independent sources only when they can be queried safely from the frontend/backend without creating unreliable or broken image URLs.
-- Never silently substitute a generic aircraft photo when the exact livery/model is not verified.
+Photo verification improvement is complete. The tracker queries Planespotters.net independently through the Supabase backend for model/operator corroboration, then only displays a Wikimedia Commons image when that corroboration succeeds and the Commons title/description independently matches the aircraft model and livery. Never silently substitute a generic aircraft photo when the exact match is not verified.
 
 ## Current backend
 
@@ -121,7 +118,7 @@ Use Waypoint as a behavior/reference target, not as a source of copied code or p
 1. The current map renderer intentionally removes aircraft outside the viewport. This matches the user's requirement. Do not "fix" this by keeping off-screen markers visible.
 2. Selecting a plane clears the previous selected route and the new flight's route is fetched/drawn automatically. No Route button was found in index.html/app.js.
 3. Generic trail function exists, but selected-flight route rendering is the important path. Do not add a separate route control.
-4. The current aircraft photo matcher is conservative, but its two sources are both Wikimedia-family APIs. Strengthen this to genuinely independent source verification in the next photo-system pass.
+4. The aircraft photo matcher now uses Wikimedia Commons for the displayed image and Planespotters.net as an independent corroboration source through the backend. Wikipedia is no longer treated as an independent photo source.
 5. The current summary filter-state indicator does not include every advanced filter (speed, vertical speed, livery, VA, aircraft class). This is a UI correctness/polish issue, not a live-data failure, and should be fixed later.
 6. Any new backend changes must preserve Infinite Flight rate limits and short-lived caching. Do not build permanent Live API history storage.
 7. Do not create local test files. Use GitHub Actions/deployment checks and direct GitHub source inspection for verification.
