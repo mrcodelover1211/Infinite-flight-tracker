@@ -805,7 +805,7 @@ async function loadAirportPhoto(a){
     const airportWords=/\b(airport|international airport|aerodrome|airfield|aviation)\b/i;
     const badWords=/\b(person|politician|actor|actress|terrorist|militant|criminal|footballer|singer|writer|president|minister)\b/i;
     const icaoNorm=icao.toLowerCase();
-    const nameTokens=name.toLowerCase().replace(/[^a-z0-9]+/g," ").split(/\\s+/).filter(x=>x.length>2);
+    const nameTokens=name.toLowerCase().replace(/[^a-z0-9]+/g," ").split(/\s+/).filter(x=>x.length>2);
 
     const scored=candidates.filter(p=>p?.thumbnail?.source).map(p=>{
       const title=String(p.title||"");
@@ -828,8 +828,26 @@ async function loadAirportPhoto(a){
     airportPhotoCache.set(key,photo);
     renderAirportPhoto(box,photo);
   }catch{
-    airportPhotoCache.set(key,null);
-    renderAirportPhoto(box,null);
+    try{
+      const fallbackUrl="https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrsearch="+
+        encodeURIComponent((name||icao)+" airport")+
+        "&gsrlimit=8&prop=imageinfo|info&iiprop=url&iiurlwidth=900&format=json&origin=*";
+      const rr=await fetch(fallbackUrl,{cache:"no-store"});
+      const dd=await rr.json();
+      const pages=Object.values(dd.query?.pages||{});
+      const valid=pages.find(p=>{
+        const title=String(p?.title||"").toLowerCase();
+        const info=p?.imageinfo?.[0];
+        return info&&(title.includes(icao.toLowerCase())||title.includes("airport")||title.includes("aerodrome"));
+      });
+      const info=valid?.imageinfo?.[0];
+      const photo=valid&&info?{src:info.thumburl||info.url,title:valid.title||name||icao,url:info.descriptionurl||info.url}:null;
+      airportPhotoCache.set(key,photo);
+      renderAirportPhoto(box,photo);
+    }catch{
+      airportPhotoCache.set(key,null);
+      renderAirportPhoto(box,null);
+    }
   }
 }
 
