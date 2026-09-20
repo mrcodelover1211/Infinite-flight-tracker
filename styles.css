@@ -218,3 +218,34 @@ body[data-device="phone"] .check-row{height:36px;font-size:10px}
 @media(max-width:520px){
   .aircraft-photo img{height:120px}
 }
+
+.airport-tower-wrap{background:transparent!important;border:0!important}
+.airport-tower{width:12px;height:12px;display:flex;align-items:center;justify-content:center;color:#dbe8f5;font-size:12px;line-height:12px;text-shadow:0 1px 3px #000}
+.airport-flight-row{position:relative;padding-right:58px}
+.book-flight-btn{position:absolute;right:8px;top:50%;transform:translateY(-50%)}
+.booking-card{display:grid;gap:12px}
+.booking-route{display:flex;align-items:center;justify-content:center;gap:18px;font-size:20px}
+.booking-route span{color:#74879a}
+.booking-label{display:grid;gap:6px;font-size:11px;color:#8291a3}
+.booking-label input{height:40px;border:1px solid #2b3949;border-radius:8px;background:#0b1118;color:#eef4fa;padding:0 10px}
+.primary-btn{height:40px;border:1px solid #56718e;border-radius:8px;background:#1e3b56;color:#fff;font-weight:700}
+.booking-note{font-size:10px}
+.ticket{background:#f3f6f8;color:#101820;border-radius:12px;padding:16px;max-width:560px;margin:auto}
+.ticket-top{display:flex;justify-content:space-between;border-bottom:2px dashed #9ba8b4;padding-bottom:10px;font-size:10px}
+.ticket-top strong{letter-spacing:1px}
+.ticket-route{display:flex;justify-content:space-around;align-items:center;padding:18px 4px;border-bottom:1px solid #c6d0d8}
+.ticket-route div{display:grid;gap:3px}
+.ticket-route small,.ticket-grid small,.ticket-bottom small{font-size:8px;color:#657481;letter-spacing:.7px}
+.ticket-route b{font-size:25px}
+.ticket-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:12px;padding:14px 0}
+.ticket-grid div{display:grid;gap:3px}
+.ticket-grid b{font-size:12px;word-break:break-word}
+.ticket-bottom{display:flex;justify-content:space-between;gap:12px;align-items:center;border-top:2px dashed #9ba8b4;padding-top:12px}
+.ticket-bottom>div{display:grid;gap:4px}
+.ticket-qr{width:140px;height:140px;image-rendering:auto;background:#fff}
+.ticket-note{text-align:center;font-size:9px;color:#647380;margin-top:10px}
+@media(max-width:520px){
+  .ticket-grid{grid-template-columns:1fr 1fr}
+  .ticket-route b{font-size:20px}
+  .ticket-qr{width:110px;height:110px}
+}
