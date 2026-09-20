@@ -786,7 +786,11 @@ async function loadAircraftPhoto(f,attempt=0){
   const livery=validLivery ? flightLivery : "";
 
   if(!livery){
-    box.innerHTML='<div class="aircraft-photo-empty">Waiting for this flight’s verified livery… searching again.</div>';
+    if(attempt>=2){
+      box.innerHTML='<div class="aircraft-photo-empty">No verified airline/livery was provided by the Live API. Photo search stopped.</div>';
+      return;
+    }
+    box.innerHTML='<div class="aircraft-photo-empty">Waiting for this flight’s verified airline/livery…</div>';
     setTimeout(()=>{
       if(box.dataset.flightId===flightKey) loadAircraftPhoto(f,attempt+1);
     },7000);
@@ -849,10 +853,6 @@ async function loadAircraftPhoto(f,attempt=0){
       [aircraft,livery].filter(Boolean).join(" "),
       '"'+livery+'" "'+aircraft+'"',
       livery+" "+modelAliases[1],
-      livery+" Airbus A330",
-      livery+" A330-300",
-      livery+" A330-200",
-      livery+" A330",
       livery+" aircraft",
       ...modelAliases.map(x=>x+" "+livery),
       ...modelAliases.map(x=>x+" aircraft "+livery)
@@ -977,22 +977,22 @@ async function loadAircraftPhoto(f,attempt=0){
       return;
     }
 
-    // Do not declare failure after one search. Wikimedia indexing and
-    // verification sources can disagree temporarily, so keep trying with
-    // the same verified livery rather than showing a dead-end card.
-    if(box.dataset.flightId===flightKey){
-      box.innerHTML='<div class="aircraft-photo-empty">Searching for a verified '+esc(livery)+' '+esc(aircraft)+' photo…</div>';
-    }
-    if(box.dataset.flightId===flightKey){
-      const seconds=Math.min(30,7+attempt*2);
-      box.innerHTML='<div class="aircraft-photo-empty">Searching 100+ verified photo candidates for '+esc(livery)+' '+esc(aircraft)+'…</div>';
+    // Search is deliberately bounded. A missing photo must not create a
+    // permanent request loop just because the callsign or photo index is odd.
+    if(box.dataset.flightId===flightKey && attempt<2){
+      const seconds=8+attempt*4;
+      box.innerHTML='<div class="aircraft-photo-empty">Searching 100+ verified photo candidates for '+esc(livery)+' '+esc(aircraft)+'… pass '+(attempt+1)+' of 3</div>';
       setTimeout(()=>loadAircraftPhoto(f,attempt+1),seconds*1000);
+    }else if(box.dataset.flightId===flightKey){
+      box.innerHTML='<div class="aircraft-photo-empty">No accurately verified '+esc(livery)+' '+esc(aircraft)+' photo found. Search stopped.</div>';
     }
   }catch{
-    if(box.dataset.flightId===flightKey){
-      const seconds=Math.min(30,7+attempt*2);
-      box.innerHTML='<div class="aircraft-photo-empty">Photo search temporarily failed. Retrying…</div>';
+    if(box.dataset.flightId===flightKey && attempt<2){
+      const seconds=8+attempt*4;
+      box.innerHTML='<div class="aircraft-photo-empty">Photo verification temporarily failed. Retrying… pass '+(attempt+1)+' of 3</div>';
       setTimeout(()=>loadAircraftPhoto(f,attempt+1),seconds*1000);
+    }else if(box.dataset.flightId===flightKey){
+      box.innerHTML='<div class="aircraft-photo-empty">Photo verification failed after 3 passes. Search stopped.</div>';
     }
   }
 }
