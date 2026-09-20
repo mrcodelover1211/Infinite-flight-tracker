@@ -2,7 +2,7 @@ const API="https://vbifkgzmczbndtawawre.supabase.co/functions/v1/flights";
 const POLL_MS=15000;
 const map=L.map("map",{worldCopyJump:true,zoomControl:true}).setView([20,0],2);
 L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png",{maxZoom:19,attribution:"© OpenStreetMap contributors"}).addTo(map);
-const markers=new Map();const trails=new Map();let allFlights=[];let visibleFlights=[];let lastSelectedId=null;let loading=false;let selectedFlight=null;let selectedSeat=null;let airportTab="arrivals";
+const markers=new Map();const trails=new Map();let selectedRouteLayer=null;let allFlights=[];let visibleFlights=[];let lastSelectedId=null;let loading=false;let selectedFlight=null;let selectedSeat=null;let airportTab="arrivals";
 const $=id=>document.getElementById(id);
 
 function aircraftIcon(heading){
@@ -135,7 +135,7 @@ function renderAirportResults(data){
   $("airportPanel").innerHTML='<div class="airport-title">'+escapeHtml(airport.icao||"Airport")+'</div><div class="muted">'+escapeHtml(airport.name||"")+'</div><div class="tabs"><button class="'+(airportTab==="arrivals"?"active":"")+'" id="arrivalsTab">Arrivals ('+(airport.inbound_count||0)+')</button><button class="'+(airportTab==="departures"?"active":"")+'" id="departuresTab">Departures ('+(airport.outbound_count||0)+')</button></div>'+list.map(x=>{const f=x.flight||{};const other=airportTab==="arrivals"?(x.origin?.name||x.origin?.identifier||"Unknown origin"):(x.destination?.name||x.destination?.identifier||"Unknown destination");const eta=x.eta?new Date(x.eta).toLocaleTimeString([],{hour:"2-digit",minute:"2-digit"}):"—";return '<div class="flight-row" data-flight="'+escapeHtml(f.flight_id||"")+'"><div class="flight-main"><strong>'+escapeHtml(f.callsign||"Unknown")+'</strong><span class="route-badge">'+escapeHtml(other)+'</span></div><div class="muted">'+escapeHtml(f.username||"")+' · '+escapeHtml(f.aircraft_id||"")+" · "+(airportTab==="arrivals"?"ETA ":"Departure ") +eta+'</div></div>'}).join("")||'<div class="empty">No live flights returned.</div>';
   $("arrivalsTab").addEventListener("click",()=>{airportTab="arrivals";loadAirport(airport.icao)});
   $("departuresTab").addEventListener("click",()=>{airportTab="departures";loadAirport(airport.icao)});
-  document.querySelectorAll(".flight-row").forEach(r=>r.addEventListener("click",()=>{const f=allFlights.find(x=>String(x.flight_id)===r.dataset.flight);if(f)showDetails(f)}));
+  document.querySelectorAll(".flight-row").forEach(r=>r.addEventListener("click",()=>{const f=allFlights.find(x=>String(x.flight_id)===r.dataset.flight);if(f)loadFlightDetail(f)}));
 }
 async function loadAirport(icao){
   $("airportPanel").classList.remove("hidden");$("airportPanel").innerHTML='<div class="airport-title">'+escapeHtml(icao)+'</div><div class="muted">Loading live airport traffic…</div>';
