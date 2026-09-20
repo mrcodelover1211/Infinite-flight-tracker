@@ -11,7 +11,7 @@ const map = L.map("map", {
   worldCopyJump:false,
   zoomControl:true,
   preferCanvas:true,
-  maxBounds:[[-85,-180],[85,180]],
+  maxBounds:[[-89.9,-180],[89.9,180]],
   maxBoundsViscosity:1,
   minZoom:2,
   maxZoom:12,
@@ -274,12 +274,14 @@ function planePixels(){
 }
 
 function planePixelsForClass(kind){
-  // FR24-style compact icons: aircraft category changes the silhouette and only
-  // slightly changes the footprint. Avoid the old double-scaling that made
-  // widebodies look enormous compared with smaller aircraft.
-  const base=settings.planeSize==="small"?12:settings.planeSize==="large"?16:14;
-  const mul={widebody:1.08,narrowbody:1.03,regional:1,turboprop:.96,helicopter:.98,military:1.02,general:.92,other:1}[kind]||1;
-  return Math.round(base*mul);
+  // Compact, FR24-style sizing: zoom changes the footprint gently, while
+  // aircraft classes keep almost the same visual weight so one 777 cannot
+  // swallow a 737 like the old double-scaled icons did.
+  const base=settings.planeSize==="small"?10:settings.planeSize==="large"?15:12;
+  const zoom=map.getZoom();
+  const zoomMul=zoom<=3?.82:zoom<=4?.9:zoom>=9?1.06:1;
+  const mul={widebody:1.03,narrowbody:1.01,regional:1,turboprop:.97,helicopter:.98,military:1.02,general:.94,other:1}[kind]||1;
+  return clamp(Math.round(base*zoomMul*mul),8,18);
 }
 function planeIcon(f){
   const kind=aircraftClass(f||{}),px=planePixelsForClass(kind);
@@ -318,7 +320,11 @@ function updatePlane(marker,f,selected){
   marker._targetHeading=Number.isFinite(Number(f.heading_deg))?Number(f.heading_deg):Number(f.track_deg)||0;
   marker._selected=selected;
   marker._reportedAt=reportAt||marker._reportedAt||null;
-  marker.setIcon(planeIcon(f));
+  const iconKey=aircraftClass(f)+"|"+String(f.aircraft_type||"")+"|"+settings.planeSize+"|"+Math.floor(map.getZoom());
+  if(marker._iconKey!==iconKey){
+    marker.setIcon(planeIcon(f));
+    marker._iconKey=iconKey;
+  }
   marker.setTooltipContent(labelForFlight(f));
   const el=marker.getElement()?.querySelector(".aircraft-marker");
   if(el){el.classList.toggle("selected",selected);el.style.transform="rotate("+marker._targetHeading+"deg)";}
@@ -356,10 +362,14 @@ function performanceProfile(){
 
 function maxRenderableFlights(){
   const p=performanceProfile();
-  if(selectedServer==="expert"){
-    return p==="low"?350:p==="medium"?650:1200;
-  }
-  return p==="low"?500:p==="medium"?900:1600;
+  const base=selectedServer==="expert"
+    ?(p==="low"?350:p==="medium"?650:1200)
+    :(p==="low"?500:p==="medium"?900:1600);
+  const zoom=map.getZoom();
+  // At world scale, fewer DOM markers are useful. As the user zooms in,
+  // the viewport contains fewer aircraft, so the cap can safely rise.
+  const zoomMul=zoom<=2?.55:zoom<=3?.68:zoom<=4?.82:zoom<=5?.95:zoom>=8?1.2:1;
+  return Math.max(80,Math.min(1800,Math.round(base*zoomMul)));
 }
 
 function phase(f){
@@ -465,6 +475,7 @@ function renderFlights(){
 
   const active=new Set();
   const renderLimit=maxRenderableFlights();
+  const performanceMode=selectedServer==="expert"&&performanceProfile()!=="high";
   const candidates=visibleFlights
     .filter(f=>validPos(f)&&isInMapViewport(f))
     .slice()
@@ -483,7 +494,9 @@ function renderFlights(){
     let marker=markers.get(id);
     if(!marker)marker=createPlaneMarker(f);
     updatePlane(marker,f,selected);
-    // Selected flights show their actual flight plan, not a generic breadcrumb trail.
+    if(settings.trails && (!performanceMode || selected)) updateTrail(id,f,selected);
+    // Selected flights keep their trail even on weaker devices; off-screen aircraft
+    // have no marker or trail layer, which keeps panning/zooming cheap.
   }
 
   for(const [id,m] of markers){
@@ -497,10 +510,11 @@ function renderFlights(){
     }
   }
 
-  const performanceMode=selectedServer==="expert"&&performanceProfile()!=="high";
   if(performanceMode){
-    for(const l of trails.values())map.removeLayer(l);
-    trails.clear();
+    for(const [id,l] of trails){
+      const keep=id===String(selectedFlight?.flight_id||"")||id===String(followingFlightId||"");
+      if(!keep){map.removeLayer(l);trails.delete(id);}
+    }
   }else if(!settings.trails){
     for(const l of trails.values())map.removeLayer(l);
   }
@@ -1244,6 +1258,7 @@ function loadScript(src){
 }
 async function openGlobe(){
   touch();
+  document.querySelectorAll("#mapModePicker button").forEach(b=>b.classList.toggle("active",b.dataset.mapMode==="3d"));
   $("globeOverlay").classList.remove("hidden");
   $("globeOverlay").setAttribute("aria-hidden","false");
   $("globeStatus").textContent="Loading 3D globe…";
@@ -1265,6 +1280,13 @@ async function openGlobe(){
         .atmosphereAltitude(.12);
     }
     globeInstance.pointsData(allFlights.filter(validPos));
+    if(selectedFlight&&validPos(selectedFlight)&&globeInstance.pointOfView){
+      globeInstance.pointOfView({
+        lat:Number(selectedFlight.latitude),
+        lng:normLon(selectedFlight.longitude),
+        altitude:Math.max(.9,Math.min(2.4,2.1-Math.log10(Math.max(1,Number(selectedFlight.altitude_ft)||1))/6))
+      },500);
+    }
     $("globeStatus").textContent=allFlights.length.toLocaleString()+" live aircraft";
   }catch{
     $("globeStatus").textContent="Globe unavailable";
@@ -1274,6 +1296,7 @@ async function openGlobe(){
 function closeGlobe(){
   $("globeOverlay").classList.add("hidden");
   $("globeOverlay").setAttribute("aria-hidden","true");
+  document.querySelectorAll("#mapModePicker button").forEach(b=>b.classList.toggle("active",b.dataset.mapMode==="2d"));
 }
 
 function closeAirportPanel(){
@@ -1778,9 +1801,17 @@ function setAtc(enabled){
   if(airportsVisible)renderWorld();
 }
 
+function setMapMode(mode){
+  if(mode==="3d"){openGlobe();return;}
+  closeGlobe();
+  map.invalidateSize({animate:false});
+  renderFlights();
+}
 function openSettings(){
   touch();
   syncDraftFilterUI();
+  document.querySelectorAll("#mapModePicker button").forEach(b=>b.classList.toggle("active",b.dataset.mapMode===("2d")));
+
   $("settingsOverlay").classList.remove("hidden");
   $("settingsOverlay").setAttribute("aria-hidden","false");
 }
@@ -1913,7 +1944,10 @@ $("settingsAirportMapBtn").onclick=()=>{
 $("settingsLayersBtn").onclick=()=>{closeSettings();openSettings();};
 $("settingsFleetBtn").onclick=()=>{closeSettings();openFleet();};
 $("settingsReplayBtn").onclick=()=>{closeSettings();selectedFlight?openReplay(selectedFlight):error("Select a flight first.");};
-$("settingsGlobeBtn").onclick=()=>{closeSettings();openGlobe();};
+$("settingsGlobeBtn").onclick=()=>{closeSettings();setMapMode("3d");};
+document.querySelectorAll("#mapModePicker button").forEach(b=>{
+  b.onclick=()=>{touch();setMapMode(b.dataset.mapMode);}
+});
 $("settingsLabelsBtn").onclick=()=>setLabels(!settings.labels);
 $("settingsAtcBtn").onclick=()=>setAtc(!settings.atc);
 $("settingsTrailsBtn").onclick=()=>setTrails(!settings.trails);
