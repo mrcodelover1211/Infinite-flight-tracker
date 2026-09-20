@@ -463,23 +463,62 @@ async function loadAircraftPhoto(f){
     renderAircraftPhoto(box,aircraftPhotoCache.get(key));
     return;
   }
+
+  // Wikipedia search results can contain people, accidents, and other
+  // unrelated pages. Only accept pages whose description clearly refers
+  // to an aircraft/airliner/aviation subject and whose title is relevant.
+  const aircraftNorm=aircraft.toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+  const aircraftTokens=aircraftNorm.split(/\\s+/).filter(t=>t.length>=2);
+  const liveryNorm=livery.toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
+
+  const queries=[
+    [aircraft,livery].filter(Boolean).join(" "),
+    aircraft
+  ].filter(Boolean);
+
   try{
-    const query=[livery,aircraft].filter(Boolean).join(" ");
-    const url="https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch="+encodeURIComponent(query)+"&gsrlimit=6&prop=pageimages|info&inprop=url&piprop=thumbnail&pilimit=6&pithumbsize=700&format=json&origin=*";
-    const r=await fetch(url,{cache:"force-cache"});
-    const d=await r.json();
-    const pages=Object.values(d.query?.pages||{})
+    let candidates=[];
+    for(const query of queries){
+      const url="https://en.wikipedia.org/w/api.php?action=query&generator=search&gsrsearch="+
+        encodeURIComponent(query)+
+        "&gsrlimit=10&prop=pageimages|pageterms|info&inprop=url&piprop=thumbnail&pilimit=10&pithumbsize=700&wbptterms=description&format=json&origin=*";
+      const r=await fetch(url,{cache:"force-cache"});
+      const d=await r.json();
+      candidates.push(...Object.values(d.query?.pages||{}));
+      if(candidates.length>=10)break;
+    }
+
+    const aircraftWords=/\\b(aircraft|airliner|airplane|aeroplane|aviation|jet|helicopter|airliner)\\b/i;
+    const humanWords=/\\b(person|politician|actor|actress|pilot|terrorist|militant|criminal|footballer|singer|writer|president|minister|general)\\b/i;
+
+    const scored=candidates
       .filter(p=>p?.thumbnail?.source)
-      .sort((a,b)=>{
-        const al=String(a.title||"").toLowerCase(), bl=String(b.title||"").toLowerCase();
-        const aq=aircraft.toLowerCase(), bq=aircraft.toLowerCase();
-        return Number(bl.includes(bq))-Number(al.includes(aq));
-      });
-    const photo=pages[0]?{
-      src:pages[0].thumbnail.source,
-      title:pages[0].title||aircraft,
-      url:pages[0].fullurl||("https://en.wikipedia.org/wiki/"+encodeURIComponent(pages[0].title||""))
+      .map(p=>{
+        const title=String(p.title||"");
+        const description=String(p.terms?.description?.[0]||"");
+        const text=(title+" "+description).toLowerCase();
+        const titleNorm=text.replace(/[^a-z0-9]+/g," ");
+        let score=0;
+
+        if(aircraftWords.test(description))score+=8;
+        if(humanWords.test(description))score-=20;
+        if(aircraftTokens.some(t=>titleNorm.includes(t)))score+=3;
+        if(aircraftNorm&&titleNorm.includes(aircraftNorm))score+=8;
+        if(liveryNorm&&titleNorm.includes(liveryNorm))score+=4;
+        if(/\\b(747|737|777|787|a3[0-9]{2}|a220|a330|a340|a350|a380|md[- ]?11|md[- ]?80|crj|embraer|e170|e175|e190|e195|atr|dash|concorde)\\b/i.test(text))score+=4;
+
+        return {p,score,description};
+      })
+      .filter(x=>x.score>=7 && !humanWords.test(x.description))
+      .sort((a,b)=>b.score-a.score);
+
+    const best=scored[0]?.p;
+    const photo=best?{
+      src:best.thumbnail.source,
+      title:best.title||aircraft,
+      url:best.fullurl||("https://en.wikipedia.org/wiki/"+encodeURIComponent(best.title||""))
     }:null;
+
     aircraftPhotoCache.set(key,photo);
     renderAircraftPhoto(box,photo);
   }catch{
