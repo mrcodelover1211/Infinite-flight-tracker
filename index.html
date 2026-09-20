@@ -76,6 +76,29 @@
   </aside>
 </main>
 
+<div id="bookingOverlay" class="overlay hidden" aria-hidden="true">
+  <section class="settings-modal booking-modal" role="dialog" aria-modal="true" aria-labelledby="bookingTitle">
+    <div class="settings-head">
+      <div>
+        <h2 id="bookingTitle">Flight booking</h2>
+        <div class="muted">Create a tracker boarding ticket for this flight.</div>
+      </div>
+      <button id="bookingClose" class="icon-btn" aria-label="Close booking">×</button>
+    </div>
+    <div id="bookingContent"></div>
+  </section>
+</div>
+
+<div id="ticketOverlay" class="overlay hidden" aria-hidden="true">
+  <section class="settings-modal ticket-modal" role="dialog" aria-modal="true" aria-labelledby="ticketTitle">
+    <div class="settings-head">
+      <div><h2 id="ticketTitle">Your ticket</h2><div class="muted">Keep this ticket for your simulated booking.</div></div>
+      <button id="ticketClose" class="icon-btn" aria-label="Close ticket">×</button>
+    </div>
+    <div id="ticketContent"></div>
+  </section>
+</div>
+
 <div id="settingsOverlay" class="overlay hidden" aria-hidden="true">
   <section class="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settingsTitle">
     <div class="settings-head">
