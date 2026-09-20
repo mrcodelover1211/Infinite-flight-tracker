@@ -1288,13 +1288,43 @@ $("clearSearchBtn").onclick=clearSearch;
 $("search").onkeydown=e=>{if(e.key==="Enter")runSearch()};
 
 $("listBtn").onclick=toggleList;
+$("searchTopBtn").onclick=()=>{
+  touch();
+  listVisible=true;
+  $("listBtn").classList.add("active");
+  renderTrafficList();
+  $("search").focus();
+  $("search").select();
+};
 $("airportsToggle").onclick=toggleAirports;
 $("airportBtn").onclick=openAirportSearch;
 $("fitBtn").onclick=fitAircraft;
 $("randomBtn").onclick=randomFlight;
+$("worldTopBtn").onclick=worldView;
 $("refreshBtn").onclick=()=>{touch();load()};
 $("settingsBtn").onclick=openSettings;
 $("statsBtn").onclick=openStats;
+
+$("settingsSearchBtn").onclick=()=>{
+  closeSettings();
+  listVisible=true;
+  $("listBtn").classList.add("active");
+  renderTrafficList();
+  $("search").focus();
+  $("search").select();
+};
+$("settingsAirportBtn").onclick=()=>{closeSettings();openAirportSearch()};
+$("settingsRefreshBtn").onclick=()=>{closeSettings();touch();load()};
+$("settingsWorldBtn").onclick=()=>{closeSettings();worldView()};
+$("settingsStatsBtn").onclick=()=>{closeSettings();openStats()};
+$("settingsAirportMapBtn").onclick=()=>{
+  const enabled=!airportsVisible;
+  toggleAirports(enabled);
+};
+$("settingsLabelsBtn").onclick=()=>setLabels(!settings.labels);
+$("settingsAtcBtn").onclick=()=>setAtc(!settings.atc);
+$("settingsTrailsBtn").onclick=()=>setTrails(!settings.trails);
+$("settingsAirportsBtn").onclick=()=>toggleAirports(!airportsVisible);
 
 $("airportGo").onclick=()=>{touch();loadAirport($("airportInput").value)};
 $("airportInput").onkeydown=e=>{if(e.key==="Enter"){touch();loadAirport(e.target.value)}};
