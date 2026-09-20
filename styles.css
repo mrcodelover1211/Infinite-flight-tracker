@@ -377,3 +377,10 @@ body[data-device="phone"] .check-row{height:36px;font-size:10px}
   .fleet-row .fleet-speed{display:none}
   .fleet-row button{padding:5px 6px;font-size:10px}
 }
+
+.replay-chart-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px;margin:10px 0}
+.replay-chart{min-width:0;padding:8px;border:1px solid #253140;background:#111823;border-radius:8px;color:#8ca6bb}
+.replay-chart svg{display:block;width:100%;height:70px;margin-top:5px}
+.replay-chart polyline{vector-effect:non-scaling-stroke}
+.airport-atc{margin-top:10px}
+@media(max-width:700px){.replay-chart-grid{grid-template-columns:1fr}}
