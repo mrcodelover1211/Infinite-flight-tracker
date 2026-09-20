@@ -757,230 +757,55 @@ function renderDetails(f){
   loadAircraftPhoto(f);
 }
 
-async function loadAircraftPhoto(f,attempt=0){
+const LOCAL_OPERATOR_BY_CALLSIGN={
+  FDX:"FedEx",FDXG:"FedEx",UPS:"UPS",DHL:"DHL",
+  UAE:"Emirates",QTR:"Qatar Airways",THY:"Turkish Airlines",TK:"Turkish Airlines",
+  BAW:"British Airways",AAL:"American Airlines",UAL:"United Airlines",
+  DAL:"Delta Air Lines",AFR:"Air France",KLM:"KLM",SIA:"Singapore Airlines",
+  CPA:"Cathay Pacific",ETD:"Etihad",RYR:"Ryanair",EZY:"easyJet",
+  SWA:"Southwest Airlines",JBU:"JetBlue",ACA:"Air Canada",QFA:"Qantas",
+  IBE:"Iberia",SWR:"SWISS",ANA:"ANA",JAL:"Japan Airlines",
+  KAL:"Korean Air",SVA:"Saudia",MSR:"EgyptAir",ETH:"Ethiopian Airlines"
+};
+
+function localLiveryForFlight(f){
+  const current=String(f.livery_name||"").trim();
+  if(current&&!/^(livery unavailable|unknown|unk|n\/a|na|null|undefined|none|-)$/i.test(current))return current;
+  const raw=String(f.callsign||"").trim().toUpperCase().replace(/[^A-Z0-9]/g,"");
+  const code=raw.slice(0,3);
+  return LOCAL_OPERATOR_BY_CALLSIGN[code]||LOCAL_OPERATOR_BY_CALLSIGN[raw.slice(0,2)]||"";
+}
+
+function localAircraftCard(aircraft,livery){
+  const safeAircraft=esc(aircraft||"Aircraft");
+  const safeLivery=esc(livery||"Airline livery unavailable");
+  return {
+    src:"data:image/svg+xml;charset=UTF-8,"+encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="900" height="420" viewBox="0 0 900 420"><rect width="900" height="420" fill="#101318"/><g fill="none" stroke="#d9e1ea" stroke-width="9" stroke-linecap="round" stroke-linejoin="round"><path d="M90 215h720"/><path d="M385 215l-95-90"/><path d="M385 215l-95 90"/><path d="M500 215l95-72"/><path d="M500 215l95 72"/><path d="M700 215l70-38"/><path d="M700 215l70 38"/></g><g fill="#d9e1ea"><circle cx="315" cy="145" r="13"/><circle cx="315" cy="285" r="13"/><circle cx="570" cy="160" r="13"/><circle cx="570" cy="270" r="13"/></g><text x="450" y="55" text-anchor="middle" fill="#fff" font-family="Arial,sans-serif" font-size="30" font-weight="700">${safeAircraft}</text><text x="450" y="385" text-anchor="middle" fill="#9fb0c3" font-family="Arial,sans-serif" font-size="25">${safeLivery}</text></svg>`),
+    title:(aircraft||"Aircraft")+" · "+(livery||"Livery unavailable"),
+    url:"",
+    source:"Built-in aircraft catalog",
+    verification_source:"Local catalog",
+    verified:false,
+    score:0
+  };
+}
+
+async function loadAircraftPhoto(f){
   const box=$("aircraftPhoto");
   if(!box)return;
   const flightKey=String(f.flight_id||"");
   if(box.dataset.flightId!==flightKey)return;
 
   const aircraft=String(f.aircraft_type||"aircraft").trim();
-  const flightLivery=String(f.livery_name||"").trim();
-  const validLivery=flightLivery && !/^(livery unavailable|unknown|n\/a|null)$/i.test(flightLivery);
-  // Never remember a livery by aircraft model alone. Two A330s can be
-  // completely different airlines, so model-level memory caused Air China
-  // flights to inherit Korean Air/KLM/etc. labels during live refreshes.
-  // Only the currently selected flight may provide the livery.
-  const livery=validLivery ? flightLivery : "";
+  const livery=localLiveryForFlight(f);
 
-  if(!livery){
-    if(attempt>=2){
-      box.innerHTML='<div class="aircraft-photo-empty">No verified airline/livery was provided by the Live API. Photo search stopped.</div>';
-      return;
-    }
-    box.innerHTML='<div class="aircraft-photo-empty">Waiting for this flight’s verified airline/livery…</div>';
-    setTimeout(()=>{
-      if(box.dataset.flightId===flightKey) loadAircraftPhoto(f,attempt+1);
-    },7000);
-    return;
-  }
-
-  const key=(aircraft+"|"+livery).toLowerCase();
-  if(aircraftPhotoCache.has(key)){
-    if(box.dataset.flightId===flightKey)renderAircraftPhoto(box,aircraftPhotoCache.get(key));
-    return;
-  }
-
-  // The Live API gives us the livery identity; now search several image
-  // queries and reject candidates whose model/livery evidence does not match.
-  // Never fall back to a model-only result when a livery is known.
-  try{
-    const verifyUrl=API+
-      "?detail=photo_verify&aircraft="+encodeURIComponent(aircraft)+
-      "&livery="+encodeURIComponent(livery)+
-      "&callsign="+encodeURIComponent(String(f.callsign||""));
-    const verifyResponse=await fetch(verifyUrl,{cache:"no-store"});
-    const verification=verifyResponse.ok?await verifyResponse.json():null;
-    const verificationVerified=Boolean(verification?.verified);
-
-    // When the Live API callsign is actually a registration, the backend can
-    // return the registration-specific JetPhotos image used by FR24-style
-    // aircraft profiles. Use it before the broad model/livery search.
-    if(verificationVerified&&verification?.source==="JetPhotos"&&verification?.image){
-      const registrationPhoto={
-        src:verification.image,
-        title:String(verification.registration||f.callsign||aircraft),
-        url:verification.url||"https://www.jetphotos.com/",
-        source:"JetPhotos",
-        verification_source:"JetPhotos registration match",
-        verified:true,
-        score:100
-      };
-      if(box.dataset.flightId===flightKey)renderAircraftPhoto(box,registrationPhoto);
-      return;
-    }
-
-    const norm=s=>String(s||"").toLowerCase().replace(/[^a-z0-9]+/g," ").trim();
-    const aircraftNorm=norm(aircraft);
-    const liveryNorm=norm(livery);
-    const aircraftTokens=aircraftNorm.split(/\s+/).filter(t=>t.length>=2);
-    const liveryTokens=liveryNorm.split(/\s+/).filter(t=>t.length>=3);
-    const liveryKey=liveryTokens[0]||liveryNorm;
-    const modelAliases=[...new Set([
-      aircraft,
-      aircraft.replace(/\b(freighter|cargo|passenger|combi|heavy)\b/ig," ").replace(/\s+/g," ").trim(),
-      aircraft.replace(/\b(md)[ -]?(\d+)\b/ig,"MD-$2"),
-      aircraft.replace(/\b(dc)[ -]?(\d+)\b/ig,"DC-$2"),
-      aircraft.replace(/\b(a)[ -]?(\d{3})\b/ig,"A$2"),
-      aircraft.replace(/\b(b)[ -]?(\d{3})\b/ig,"B$2")
-    ].map(x=>String(x||"").trim()).filter(Boolean))];
-
-    const queries=[...new Set([
-      [livery,aircraft].filter(Boolean).join(" "),
-      [aircraft,livery].filter(Boolean).join(" "),
-      '"'+livery+'" "'+aircraft+'"',
-      livery+" "+modelAliases[1],
-      livery+" aircraft",
-      ...modelAliases.map(x=>x+" "+livery),
-      ...modelAliases.map(x=>x+" aircraft "+livery)
-    ].filter(Boolean))];
-
-    // Search only Wikimedia's file namespace and inspect up to 100 unique
-    // image candidates. The old search could return article pages with
-    // thumbnails, which is why a perfectly real KLM A330 could still miss.
-    const candidates=[];
-    const seenCandidateTitles=new Set();
-    for(let offset=0;offset<queries.length && candidates.length<100;offset+=4){
-      const batch=queries.slice(offset,offset+4);
-      const results=await Promise.all(batch.map(async query=>{
-        try{
-          const url="https://commons.wikimedia.org/w/api.php?action=query&generator=search&gsrnamespace=6&gsrsearch="+
-            encodeURIComponent(query)+
-            "&gsrlimit=50&gsrwhat=text&prop=imageinfo|info&inprop=url&iiprop=url|mime&iiurlwidth=1200&format=json&origin=*";
-          const r=await fetch(url+"?tracker_nocache="+Date.now()+"_"+Math.random().toString(36).slice(2),{cache:"no-store"});
-          if(!r.ok)return [];
-          const d=await r.json();
-          return Object.values(d.query?.pages||{});
-        }catch{
-          return [];
-        }
-      }));
-      for(const pages of results){
-        for(const p of pages){
-          const title=String(p?.title||"").trim().toLowerCase();
-          const info=Array.isArray(p?.imageinfo)?p.imageinfo[0]:null;
-          const src=info?.thumburl||info?.url||"";
-          if(!title||!src||seenCandidateTitles.has(title))continue;
-          seenCandidateTitles.add(title);
-          candidates.push({...p,imageinfo:info});
-          if(candidates.length>=100)break;
-        }
-        if(candidates.length>=100)break;
-      }
-    }
-
-    const aircraftWords=/\b(aircraft|airliner|airplane|aeroplane|aviation|jet|helicopter)\b/i;
-    const badWords=/\b(person|politician|actor|actress|terrorist|militant|criminal|footballer|singer|writer|president|minister|general)\b/i;
-
-    const scored=candidates.map(p=>{
-      const title=String(p.title||"");
-      const description=String(p.terms?.description?.[0]||"");
-      const imageInfo=p.imageinfo||{};
-      const imageMeta=String(imageInfo.mime||"")+" "+String(imageInfo.url||"");
-      const text=(title+" "+description+" "+imageMeta).toLowerCase();
-      const titleNorm=norm(title);
-      let score=0;
-      const modelEvidence=modelAliases.some(alias=>{
-        const a=norm(alias);
-        return a && titleNorm.includes(a);
-      });
-      const familyEvidence=modelAliases.some(alias=>{
-        const tokens=norm(alias).split(/\s+/).filter(t=>t.length>=2);
-        return tokens.length>=2 && tokens.slice(0,2).every(t=>titleNorm.includes(t));
-      });
-      const liveryEvidence=Boolean(
-        (liveryNorm && titleNorm.includes(liveryNorm)) ||
-        (liveryKey && (titleNorm.includes(liveryKey)||text.includes(liveryKey)))
-      );
-
-      // Strongly reject a known competing airline/livery. This is the part
-      // that prevents a KLM flight from receiving an ANA photo just because
-      // both are 787s. Humans have somehow survived this long without this.
-      const competingAirlines=[
-        "ana","japan airlines","jal","klm","air france","lufthansa",
-        "british airways","emirates","qatar","etihad","turkish airlines",
-        "singapore airlines","cathay pacific","united airlines","american airlines",
-        "delta air lines","southwest","jetblue","air canada","qantas","iberia",
-        "swiss","ryanair","easyjet","saudia","egyptair","ethiopian airlines",
-        "dhl","fedex","ups"
-      ];
-      const wrongCompetingAirline=competingAirlines.some(name=>{
-        const n=norm(name);
-        return n && n!==liveryNorm && titleNorm.includes(n) && !liveryNorm.includes(n);
-      });
-
-      if(modelEvidence)score+=28;
-      else if(familyEvidence)score+=20;
-      else if(aircraftTokens.some(t=>titleNorm.includes(t)))score+=4;
-      if(liveryEvidence)score+=28;
-      else score-=45;
-      if(verificationVerified)score+=18;
-      if(aircraftWords.test(description))score+=6;
-      if(wrongCompetingAirline)score-=80;
-      if(badWords.test(description)||badWords.test(title))score-=100;
-      if(/\b(747|737|777|787|a3[0-9]{2}|a220|a330|a340|a350|a380|md[- ]?11|md[- ]?80|crj|embraer|e170|e175|e190|e195|atr|dash)\b/i.test(text))score+=3;
-
-      const verified=Boolean(
-        verificationVerified &&
-        (modelEvidence||familyEvidence) &&
-        liveryEvidence &&
-        !wrongCompetingAirline &&
-        !badWords.test(description) &&
-        !badWords.test(title)
-      );
-      return {p,score,verified};
-    });
-
-    // Keep searching through all query results and only accept a photo that
-    // passes BOTH model and livery verification. There is deliberately no
-    // model-only fallback.
-    const chosen=scored
-      .filter(x=>x.verified&&x.score>=60)
-      .sort((a,b)=>b.score-a.score)[0];
-    const best=chosen?.p;
-    const photo=best?{
-      src:best.thumbnail.source,
-      title:best.title||aircraft,
-      url:best.fullurl||("https://commons.wikimedia.org/wiki/"+encodeURIComponent(best.title||"")),
-      source:"Wikimedia Commons",
-      verification_source:String(verification?.source||"Planespotters.net"),
-      verified:true,
-      score:chosen.score
-    }:null;
-
-    if(photo){
-      if(box.dataset.flightId===flightKey)renderAircraftPhoto(box,photo);
-      return;
-    }
-
-    // Search is deliberately bounded. A missing photo must not create a
-    // permanent request loop just because the callsign or photo index is odd.
-    if(box.dataset.flightId===flightKey && attempt<2){
-      const seconds=8+attempt*4;
-      box.innerHTML='<div class="aircraft-photo-empty">Searching 100+ verified photo candidates for '+esc(livery)+' '+esc(aircraft)+'… pass '+(attempt+1)+' of 3</div>';
-      setTimeout(()=>loadAircraftPhoto(f,attempt+1),seconds*1000);
-    }else if(box.dataset.flightId===flightKey){
-      box.innerHTML='<div class="aircraft-photo-empty">No accurately verified '+esc(livery)+' '+esc(aircraft)+' photo found. Search stopped.</div>';
-    }
-  }catch{
-    if(box.dataset.flightId===flightKey && attempt<2){
-      const seconds=8+attempt*4;
-      box.innerHTML='<div class="aircraft-photo-empty">Photo verification temporarily failed. Retrying… pass '+(attempt+1)+' of 3</div>';
-      setTimeout(()=>loadAircraftPhoto(f,attempt+1),seconds*1000);
-    }else if(box.dataset.flightId===flightKey){
-      box.innerHTML='<div class="aircraft-photo-empty">Photo verification failed after 3 passes. Search stopped.</div>';
-    }
-  }
+  // No runtime web search. The tracker uses its local aircraft/operator catalog.
+  // If Live API livery metadata is temporarily unavailable, a known callsign
+  // operator can still supply the livery label.
+  const photo=localAircraftCard(aircraft,livery);
+  if(box.dataset.flightId===flightKey)renderAircraftPhoto(box,photo);
 }
+
 function renderAircraftPhoto(box,photo){
   if(!box)return;
   if(!photo){
