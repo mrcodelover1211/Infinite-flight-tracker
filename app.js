@@ -134,12 +134,12 @@ function phase(f){
 function searchBlob(f){return[f.callsign,f.username,f.aircraft_type,f.livery_name,f.virtual_organization,f.origin?.identifier,f.destination?.identifier,f.flight_id].map(x=>String(x??"").toLowerCase()).join(" ")}
 
 function applyFilters(){
-  const term=$("search").value.trim().toLowerCase(), aircraft=$("aircraftFilter").value.trim().toLowerCase(), livery=$("liveryFilter").value.trim().toLowerCase(),va=$("vaFilter").value.trim().toLowerCase(),airport=$("airportFilter").value.trim().toUpperCase();
-  const minAlt=Number($("minAlt").value),maxAlt=Number($("maxAlt").value),minSpeed=Number($("minSpeed").value);
+  const term=$("search").value.trim().toLowerCase(), aircraft=$("aircraftFilter").value.trim().toLowerCase(), airport=$("airportFilter").value.trim().toUpperCase();
+  const minAlt=$("minAlt").value.trim()===""?null:Number($("minAlt").value), maxAlt=$("maxAlt").value.trim()===""?null:Number($("maxAlt").value), minSpeed=null;
   visibleFlights=allFlights.filter(f=>{
     const a=Number(f.altitude_ft),s=Number(f.speed_kt),ph=phase(f),blob=f.search_blob;
     const airportMatch=!airport||String(f.origin?.identifier||"").toUpperCase()===airport||String(f.destination?.identifier||"").toUpperCase()===airport;
-    return(!term||blob.includes(term))&&(!aircraft||String(f.aircraft_type||"").toLowerCase().includes(aircraft))&&(!livery||String(f.livery_name||"").toLowerCase().includes(livery))&&(!va||String(f.virtual_organization||"").toLowerCase().includes(va)||String(f.livery_name||"").toLowerCase().includes(va))&&airportMatch&&(!Number.isFinite(minAlt)||a>=minAlt)&&(!Number.isFinite(maxAlt)||a<=maxAlt)&&(!Number.isFinite(minSpeed)||s>=minSpeed)&&(filterPhase==="all"||ph===filterPhase);
+    return(!term||blob.includes(term))&&(!aircraft||String(f.aircraft_type||"").toLowerCase().includes(aircraft))&&airportMatch&&(!Number.isFinite(minAlt)||a>=minAlt)&&(!Number.isFinite(maxAlt)||a<=maxAlt)&&(filterPhase==="all"||(filterPhase==="air"&&ph!=="ground")||ph===filterPhase);
   });
   renderFlights();
 }
@@ -230,7 +230,7 @@ function renderWorld(){
     if(!bounds.pad(.25).contains([lat,lon]))continue;
     const traffic=(Number(a.inbound_count)||0)+(Number(a.outbound_count)||0);
     if(zoom<4&&traffic===0)continue;
-    const marker=L.marker([lat,lon],{icon:L.divIcon({className:"airport-label-wrap",html:'<button class="airport-label" type="button">'+esc(a.icao||"APT")+' · '+traffic+'</button>',iconSize:[80,22],iconAnchor:[40,11]})});
+    const marker=L.marker([lat,lon],{icon:L.divIcon({className:"airport-label-wrap",html:(zoom>=5?'<button class="airport-label" type="button">'+esc(a.icao||"APT")+'</button>':'<div class="airport-dot"></div>'),iconSize:(zoom>=5?[46,18]:[7,7]),iconAnchor:(zoom>=5?[23,9]:[3.5,3.5])})});
     marker.bindTooltip((a.name||"Airport")+" · "+(a.icao||"")+" · "+traffic+" traffic",{direction:"top"});
     marker.on("click",()=>loadAirport(a.icao));marker.addTo(map);airportMarkers.set(a.icao,marker);
   }
@@ -298,9 +298,9 @@ function scheduleFilters(){clearTimeout(filterTimer);filterTimer=setTimeout(appl
 document.querySelectorAll(".server-btn").forEach(b=>b.onclick=()=>setServer(b.dataset.server));
 document.querySelectorAll(".filter-chip").forEach(b=>b.onclick=()=>{filterPhase=b.dataset.phase;document.querySelectorAll(".filter-chip").forEach(x=>x.classList.toggle("active",x===b));applyFilters()});
 $("search").oninput=scheduleFilters;$("search").onkeydown=e=>{if(e.key==="Enter")applyFilters()};
-["aircraftFilter","liveryFilter","vaFilter","airportFilter","minAlt","maxAlt","minSpeed"].forEach(id=>$(id).oninput=scheduleFilters);
-$("searchBtn").onclick=applyFilters;
-$("resetBtn").onclick=()=>{["search","aircraftFilter","liveryFilter","vaFilter","airportFilter","minAlt","maxAlt","minSpeed"].forEach(id=>$(id).value="");filterPhase="all";document.querySelectorAll(".filter-chip").forEach(x=>x.classList.toggle("active",x.dataset.phase==="all"));applyFilters()};
+["aircraftFilter","airportFilter","minAlt","maxAlt"].forEach(id=>$(id).oninput=scheduleFilters);
+$("searchBtn").onclick=applyFilters;$("filtersBtn").onclick=()=>$("filtersBox").classList.toggle("hidden");
+$("resetBtn").onclick=()=>{["search","aircraftFilter","airportFilter","minAlt","maxAlt"].forEach(id=>$(id).value="");filterPhase="all";document.querySelectorAll(".filter-chip").forEach(x=>x.classList.toggle("active",x.dataset.phase==="all"));applyFilters()};
 $("fitBtn").onclick=fitAircraft;$("refreshBtn").onclick=()=>{lastInteractionAt=Date.now();load()};
 $("airportsToggle").onclick=toggleAirports;
 $("airportBtn").onclick=()=>{$("airportSearch").classList.toggle("hidden");if(!$("airportSearch").classList.contains("hidden")){$("airportInput").focus();$("airportInput").select()}};
