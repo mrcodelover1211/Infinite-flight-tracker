@@ -408,3 +408,29 @@ body[data-device="phone"] .check-row{height:36px;font-size:10px}
 .replay-chart polyline{vector-effect:non-scaling-stroke}
 .airport-atc{margin-top:10px}
 @media(max-width:700px){.replay-chart-grid{grid-template-columns:1fr}}
+
+
+.aircraft-photo-empty{min-height:220px;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:8px;padding:22px;border:1px dashed #3b4654;border-radius:14px;background:#0d1117;text-align:center}
+.photo-empty-icon{font-size:42px;opacity:.8}
+.aircraft-photo-empty strong{font-size:16px}
+.aircraft-photo-empty span{color:#9aa7b5;font-size:13px}
+.upload-photo-btn{display:inline-flex;align-items:center;justify-content:center;margin-top:8px;padding:9px 14px;border-radius:9px;background:#1d78ff;color:#fff;font-weight:700;cursor:pointer}
+.upload-photo-btn:hover{filter:brightness(1.1)}
+.photo-local-note{font-size:11px!important;color:#718096!important}
+.aircraft-photo img{width:100%;max-height:330px;object-fit:cover;border-radius:12px;display:block}
+.photo-remove-btn{border:0;background:none;color:#ff8b8b;cursor:pointer;font-weight:700}
+.aircraft-vision{margin-top:10px;padding:10px 12px;border:1px solid #26313d;border-radius:10px;background:#0b1016;font-size:13px}
+.vision-title{font-weight:800;margin-bottom:5px}
+.vision-matches{display:flex;flex-direction:column;gap:6px;margin-top:9px}
+.vision-match{border:1px solid #303b49;background:#111923;color:inherit;border-radius:8px;padding:8px;text-align:left;cursor:pointer}
+.vision-match:hover{border-color:#4b89ff}
+.photo-analyze-btn{margin-top:8px;width:100%}
+.flight-plan-panel{max-height:260px;overflow:auto;border:1px solid #26313d;border-radius:10px;background:#0b1016;margin-bottom:14px}
+.waypoint-row{display:flex;align-items:center;gap:9px;padding:8px 10px;border-bottom:1px solid #1d2630}
+.waypoint-row:last-child{border-bottom:0}
+.waypoint-row.active{background:#172337}
+.waypoint-index{width:24px;height:24px;display:grid;place-items:center;border-radius:50%;background:#1b2530;color:#aab6c4;font-size:11px}
+.waypoint-row div:nth-child(2){display:flex;flex-direction:column;min-width:0}
+.waypoint-row strong{font-size:13px}
+.waypoint-row span:not(.waypoint-index){font-size:11px;color:#8290a0}
+.waypoint-now{margin-left:auto;color:#ffd43b;font-size:10px}
