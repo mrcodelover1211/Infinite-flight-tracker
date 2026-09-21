@@ -48,6 +48,9 @@ const flightById=new Map();
 let allFlights=[];
 let visibleFlights=[];
 let selectedFlight=null;
+const uploadedAircraftImages=new Map();
+let aircraftVisionPipeline=null;
+let aircraftVisionLoading=null;
 let followingFlightId=null;
 let worldData=null;
 let airportsVisible=false;
@@ -717,7 +720,7 @@ function renderDetails(f){
   $("details").className="";
   $("details").innerHTML='<div class="card">'+
     '<div class="detail-header"><div><div class="aircraft">'+esc(f.callsign||labelForFlight(f)||"Unknown flight")+'</div><div class="muted">'+esc(f.aircraft_type||"Unknown plane")+' · '+esc(f.livery_name||"Livery unavailable")+(f.livery_source==="live_api"||f.livery_source==="live_api_match"?' · verified':'')+'</div></div>'+addStatusBadge(f)+'</div>'+
-    '<div id="aircraftPhoto" class="aircraft-photo" data-flight-id="'+esc(String(f.flight_id||""))+'"><div class="aircraft-photo-loading">Loading aircraft photo…</div></div>'+
+    '<div id="aircraftPhoto" class="aircraft-photo" data-flight-id="'+esc(String(f.flight_id||""))+'"><div class="aircraft-photo-empty"><div class="photo-empty-icon">✈</div><strong>No one uploaded an image</strong><span>Upload a plane photo for this flight.</span><label class="upload-photo-btn">Upload image<input id="aircraftPhotoUpload" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" hidden></label><div class="photo-local-note">Images stay in this browser session and are not sent to the tracker.</div></div></div>'+
     '<div class="chips"><span class="chip">'+esc(displayServer(selectedServer))+'</span><span class="chip">'+esc(f.virtual_organization||"No VA")+'</span><span class="chip">'+esc(aircraftClass(f))+'</span><span class="chip">'+esc(phase(f))+'</span></div>'+
     '<div class="progress-wrap"><div class="progress-track"><div class="progress-fill" style="width:'+(prog==null?0:prog)+'%"></div></div><div class="progress-caption"><span>'+esc(origin)+'</span><b>'+(prog==null?"—":prog.toFixed(1)+"%")+'</b><span>'+esc(dest)+'</span></div></div>'+
     '<div class="waypoint-next"><div class="label">NEXT WAYPOINT</div><b>'+esc(next?.identifier||next?.name||"Unavailable")+'</b><div class="mono">'+(f.distance_to_next_nm==null?"—":num(f.distance_to_next_nm,1)+" NM")+' · ETA '+(next?.eta_minutes==null?"—":num(next.eta_minutes)+" min")+(f.cross_track_nm==null?"":" · XTK "+num(f.cross_track_nm,1)+" NM")+'</div></div>'+
@@ -735,6 +738,7 @@ function renderDetails(f){
     '<div class="wide"><div class="label">Position</div><div class="value">'+num(f.latitude,4)+', '+num(f.longitude,4)+'</div></div>'+
     '<div class="wide"><div class="label">Last report</div><div class="value">'+esc(f.last_report||"—")+' · '+(Number.isFinite(dataAgeSeconds(f))?Math.round(dataAgeSeconds(f))+"s old":"age unknown")+'</div></div>'+
     '</div>'+
+    '<div class="detail-section-title">Flight plan · '+(Array.isArray(f.plan_waypoints)?f.plan_waypoints.length:0)+' waypoints</div><div class="flight-plan-panel">'+(Array.isArray(f.plan_waypoints)&&f.plan_waypoints.length?f.plan_waypoints.map((w,i)=>{const id=w?.identifier||w?.name||w?.fix||"Waypoint";const lat=Number(w?.latitude??w?.lat);const lon=Number(w?.longitude??w?.lon??w?.lng);const active=String(id).toUpperCase()===String(next?.identifier||"").toUpperCase();return '<div class="waypoint-row '+(active?"active":"")+'"><span class="waypoint-index">'+(i+1)+'</span><div><strong>'+esc(id)+'</strong><span>'+((Number.isFinite(lat)&&Number.isFinite(lon))?esc(lat.toFixed(4)+", "+lon.toFixed(4)):"Coordinates unavailable")+'</span></div>'+(active?'<b class="waypoint-now">NEXT</b>':"")+'</div>'}).join(""):'<div class="muted">No flight plan waypoints were returned by the Live API.</div>')+'</div>'+
     '<div class="detail-actions">'+
       '<button class="small-btn" id="followBtn">'+(followingFlightId===String(f.flight_id)?"Stop following":"Follow")+'</button>'+
       '<button class="small-btn" id="nearbyBtn">Nearby</button>'+
@@ -754,7 +758,7 @@ function renderDetails(f){
   $("shareBtn").onclick=()=>shareFlight(f);
   $("airportOriginBtn").onclick=()=>{touch();/^[A-Z0-9]{4}$/.test(origin)&&loadAirport(origin)};
   $("airportDestBtn").onclick=()=>{touch();/^[A-Z0-9]{4}$/.test(dest)&&loadAirport(dest)};
-  loadAircraftPhoto(f);
+  renderUploadedAircraftPhoto(f);
 }
 
 const LOCAL_OPERATOR_BY_CALLSIGN={
@@ -790,53 +794,50 @@ function localAircraftCard(aircraft,livery){
   };
 }
 
-async function loadAircraftPhoto(f){
-  const box=$("aircraftPhoto");
-  if(!box)return;
-  const flightKey=String(f.flight_id||"");
-  if(box.dataset.flightId!==flightKey)return;
-
-  box.innerHTML='<div class="aircraft-photo-loading">Searching aircraft photo sources…</div>';
-
-  try{
-    const params=new URLSearchParams({
-      detail:"photo_verify",
-      aircraft:String(f.aircraft_type||""),
-      livery:String(f.livery_name||""),
-      callsign:String(f.callsign||""),
-      aircraftId:String(f.aircraft_id||""),
-      liveryId:String(f.livery_id||"")
-    });
-    const r=await fetch(API+"?"+params.toString(),{cache:"no-store"});
-    const d=r.ok?await r.json():null;
-
-    // The backend may recover the livery from the exact IF liveryId, callsign
-    // mapping, or external aviation metadata even when the main feed said unavailable.
-    if(d?.resolved_livery&&box.dataset.flightId===flightKey){
-      f.livery_name=d.resolved_livery;
-      f.livery_source=d.livery_source||"photo_web_lookup";
-      selectedFlight={...selectedFlight,...f};
-      renderDetails(selectedFlight);
-    }
-
-    if(box.dataset.flightId!==flightKey)return;
-
-    if(d?.image){
-      renderAircraftPhoto(box,{
-        src:d.image,
-        title:String((d.resolved_livery||f.livery_name||"")+" "+(f.aircraft_type||"Aircraft")).trim(),
-        url:d.url||"https://www.planespotters.net/photo/search",
-        source:d.source||"Web aircraft photo search",
-        verification_source:d.evidence?"Web source match":null,
-        verified:Boolean(d.verified)
-      });
-    }else{
-      renderAircraftPhoto(box,null);
-    }
-  }catch{
-    if(box.dataset.flightId===flightKey)renderAircraftPhoto(box,null);
+function renderUploadedAircraftPhoto(f){
+  const box=$("aircraftPhoto"); if(!box)return;
+  const key=String(f.flight_id||"");
+  const item=uploadedAircraftImages.get(key);
+  if(!item){
+    box.innerHTML='<div class="aircraft-photo-empty"><div class="photo-empty-icon">✈</div><strong>No one uploaded an image</strong><span>Upload a plane photo for this flight.</span><label class="upload-photo-btn">Upload image<input id="aircraftPhotoUpload" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" hidden></label><div class="photo-local-note">Images stay in this browser session and are not sent to the tracker.</div></div>';
+    const input=$("aircraftPhotoUpload"); if(input)input.onchange=()=>handleAircraftPhotoUpload(f,input.files?.[0]||null);
+    return;
   }
+  box.innerHTML='<img src="'+esc(item.url)+'" alt="Uploaded aircraft photo" loading="lazy"><div class="aircraft-photo-credit">Your uploaded image · <button class="photo-remove-btn" id="removeAircraftPhoto">Remove</button></div><div id="aircraftVision" class="aircraft-vision">Ready to analyze the aircraft.</div><button class="small-btn photo-analyze-btn" id="analyzeAircraftPhoto">Analyze aircraft</button>';
+  $("removeAircraftPhoto").onclick=()=>{URL.revokeObjectURL(item.url);uploadedAircraftImages.delete(key);renderUploadedAircraftPhoto(f)};
+  $("analyzeAircraftPhoto").onclick=()=>analyzeUploadedAircraftPhoto(f,item);
 }
+async function handleAircraftPhotoUpload(f,file){
+  if(!file||!file.type.startsWith("image/"))return;
+  const key=String(f.flight_id||""); const old=uploadedAircraftImages.get(key);
+  if(old)URL.revokeObjectURL(old.url);
+  uploadedAircraftImages.set(key,{url:URL.createObjectURL(file),file,name:file.name,size:file.size});
+  renderUploadedAircraftPhoto(f);
+}
+async function getAircraftVisionPipeline(){
+  if(aircraftVisionPipeline)return aircraftVisionPipeline;
+  if(aircraftVisionLoading)return aircraftVisionLoading;
+  aircraftVisionLoading=(async()=>{
+    const mod=await import("https://cdn.jsdelivr.net/npm/@huggingface/transformers@3.8.1");
+    const options={dtype:"q4"}; if("gpu" in navigator)options.device="webgpu";
+    return mod.pipeline("zero-shot-image-classification","Xenova/clip-vit-base-patch32",options);
+  })();
+  try{return aircraftVisionPipeline=await aircraftVisionLoading}finally{aircraftVisionLoading=null}
+}
+async function analyzeUploadedAircraftPhoto(f,item){
+  const box=$("aircraftVision"),button=$("analyzeAircraftPhoto"); if(!box||!item)return;
+  box.textContent="Loading local vision model… first run can take a while."; if(button)button.disabled=true;
+  try{
+    const classifier=await getAircraftVisionPipeline();
+    const labels=["a Boeing 737","a Boeing 747","a Boeing 757","a Boeing 767","a Boeing 777","a Boeing 787 Dreamliner","an Airbus A220","an Airbus A320 family aircraft","an Airbus A330","an Airbus A350","an Airbus A380","an Embraer regional jet","an ATR turboprop","a Cessna or small general aviation aircraft","a helicopter","a military aircraft","an aircraft photographed at an airport"];
+    const results=await classifier(item.url,labels),top=results?.[0],confidence=Number(top?.score||0),modelGuess=String(top?.label||"Unknown aircraft");
+    const tokens=modelGuess.toLowerCase().replace(/^a[n]?\s+/,"").split(/\s+/).filter(w=>w.length>2);
+    const liveMatches=allFlights.filter(x=>tokens.some(w=>String(x.aircraft_type||"").toLowerCase().includes(w))).slice(0,8);
+    box.innerHTML='<div class="vision-title">Local photo analysis</div><div><strong>'+esc(modelGuess)+'</strong> · '+esc((confidence*100).toFixed(1))+'%</div><div class="muted">Visual family/model estimate only. It cannot prove the registration.</div>'+(liveMatches.length?'<div class="vision-matches"><b>Compatible live flights</b>'+liveMatches.map(x=>'<button class="vision-match" data-flight="'+esc(String(x.flight_id))+'">'+esc(x.callsign||"Flight")+' · '+esc(x.aircraft_type||"Aircraft")+' · '+esc(x.livery_name||"Unknown livery")+'</button>').join("")+'</div>':'<div class="muted">No current live flight matched this visual estimate.</div>');
+    box.querySelectorAll(".vision-match").forEach(b=>b.onclick=()=>{const hit=allFlights.find(x=>String(x.flight_id)===b.dataset.flight);if(hit)selectFlight(hit)});
+  }catch(error){box.textContent="Local aircraft analysis failed: "+(error?.message||"unknown error")}finally{if(button)button.disabled=false}
+}
+
 function renderAircraftPhoto(box,photo){
   if(!box)return;
   if(!photo){
