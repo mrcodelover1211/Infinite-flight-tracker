@@ -803,16 +803,41 @@ function renderUploadedAircraftPhoto(f){
     const input=$("aircraftPhotoUpload"); if(input)input.onchange=()=>handleAircraftPhotoUpload(f,input.files?.[0]||null);
     return;
   }
-  box.innerHTML='<img src="'+esc(item.url)+'" alt="Uploaded aircraft photo" loading="lazy"><div class="aircraft-photo-credit">Your uploaded image · <button class="photo-remove-btn" id="removeAircraftPhoto">Remove</button></div><div id="aircraftVision" class="aircraft-vision">Ready to analyze the aircraft.</div><button class="small-btn photo-analyze-btn" id="analyzeAircraftPhoto">Analyze aircraft</button>';
+  const trackerState=item.uploading?"Sending photo to tracker…":item.uploadError?("Tracker upload failed: "+item.uploadError):item.trackerUrl?"Photo sent to tracker · stored temporarily":"Ready to send to tracker…";
+  box.innerHTML='<img src="'+esc(item.url)+'" alt="Uploaded aircraft photo" loading="lazy"><div class="aircraft-photo-credit">Your uploaded image · <button class="photo-remove-btn" id="removeAircraftPhoto">Remove</button></div><div class="photo-local-note">'+esc(trackerState)+'</div><div id="aircraftVision" class="aircraft-vision">Ready to analyze the aircraft.</div><button class="small-btn photo-analyze-btn" id="analyzeAircraftPhoto">Analyze aircraft</button>';
   $("removeAircraftPhoto").onclick=()=>{URL.revokeObjectURL(item.url);uploadedAircraftImages.delete(key);renderUploadedAircraftPhoto(f)};
   $("analyzeAircraftPhoto").onclick=()=>analyzeUploadedAircraftPhoto(f,item);
 }
 async function handleAircraftPhotoUpload(f,file){
   if(!file||!file.type.startsWith("image/"))return;
+  if(file.size>8*1024*1024){alert("Plane photos must be 8 MB or smaller.");return;}
   const key=String(f.flight_id||""); const old=uploadedAircraftImages.get(key);
   if(old)URL.revokeObjectURL(old.url);
-  uploadedAircraftImages.set(key,{url:URL.createObjectURL(file),file,name:file.name,size:file.size});
+  const item={url:URL.createObjectURL(file),file,name:file.name,size:file.size,uploading:true,trackerUrl:""};
+  uploadedAircraftImages.set(key,item);
   renderUploadedAircraftPhoto(f);
+  try{
+    const form=new FormData();
+    form.append("image",file,file.name);
+    form.append("flight_id",String(f.flight_id||""));
+    form.append("server",String(f.server||selectedServer||""));
+    const controller=new AbortController();
+    const timer=setTimeout(()=>controller.abort(),30000);
+    const response=await fetch(API+"/photo",{method:"POST",body:form,signal:controller.signal});
+    clearTimeout(timer);
+    const data=await response.json().catch(()=>({}));
+    if(!response.ok)throw new Error(data.message||data.error||("Upload failed ("+response.status+")"));
+    item.uploading=false;
+    item.trackerUrl=data?.photo?.url||"";
+    item.trackerPath=data?.photo?.path||"";
+    uploadedAircraftImages.set(key,item);
+    renderUploadedAircraftPhoto(f);
+  }catch(error){
+    item.uploading=false;
+    item.uploadError=error?.message||"Tracker upload failed";
+    uploadedAircraftImages.set(key,item);
+    renderUploadedAircraftPhoto(f);
+  }
 }
 async function getAircraftVisionPipeline(){
   if(aircraftVisionPipeline)return aircraftVisionPipeline;
