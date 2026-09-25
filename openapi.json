@@ -2,8 +2,8 @@
   "openapi": "3.1.0",
   "info": {
     "title": "Infinite Flight Tracker Live API",
-    "version": "1.0.0",
-    "description": "Read-only live aircraft lookup for the Infinite Flight Tracker. Use lookupAircraft with a callsign such as DHL122. If server is omitted, the backend searches all currently available Infinite Flight servers. Data comes from the Infinite Flight Live API and is not simulated."
+    "version": "2.1.0",
+    "description": "Read-only live Infinite Flight aircraft lookup. The GPT supplies an aircraft or callsign such as DHL122. The backend searches currently available Infinite Flight servers."
   },
   "servers": [
     {
@@ -11,37 +11,27 @@
     }
   ],
   "paths": {
-    "/": {
+    "/lookup": {
       "get": {
         "operationId": "lookupAircraft",
-        "summary": "Look up a live Infinite Flight aircraft",
-        "description": "Provide an aircraft/callsign name. Prefer an exact callsign such as DHL122. Returns current live aircraft matches, including aircraft type, livery, route, position, altitude, speed, heading, vertical speed, last report, and connection state.",
+        "summary": "Look up one live Infinite Flight aircraft",
+        "description": "Use this endpoint when the user gives an Infinite Flight callsign or aircraft search term. Example: DHL122. If the server is omitted, all currently available servers are searched.",
         "parameters": [
-          {
-            "name": "detail",
-            "in": "query",
-            "required": true,
-            "schema": {
-              "type": "string",
-              "enum": [
-                "lookup"
-              ]
-            },
-            "description": "Use lookup for an AI-friendly aircraft lookup."
-          },
           {
             "name": "aircraft",
             "in": "query",
             "required": true,
+            "description": "Aircraft callsign or search text, for example DHL122.",
             "schema": {
-              "type": "string"
-            },
-            "description": "Aircraft or callsign to find, for example DHL122, THY546, or an Infinite Flight flight ID."
+              "type": "string",
+              "minLength": 1
+            }
           },
           {
             "name": "server",
             "in": "query",
             "required": false,
+            "description": "Optional Infinite Flight server. Omit to search all available servers.",
             "schema": {
               "type": "string",
               "enum": [
@@ -49,17 +39,123 @@
                 "training",
                 "expert"
               ]
-            },
-            "description": "Optional Infinite Flight server to search. If omitted, the backend searches all currently available servers."
+            }
           }
         ],
         "responses": {
           "200": {
-            "description": "Live aircraft lookup result",
+            "description": "Compact live aircraft lookup result",
             "content": {
               "application/json": {
                 "schema": {
-                  "type": "object"
+                  "type": "object",
+                  "required": [
+                    "ok",
+                    "query",
+                    "count",
+                    "matches"
+                  ],
+                  "properties": {
+                    "ok": {
+                      "type": "boolean"
+                    },
+                    "query": {
+                      "type": "string"
+                    },
+                    "count": {
+                      "type": "integer"
+                    },
+                    "message": {
+                      "type": "string"
+                    },
+                    "matches": {
+                      "type": "array",
+                      "maxItems": 3,
+                      "items": {
+                        "type": "object",
+                        "properties": {
+                          "callsign": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "pilot": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "aircraft_type": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "livery_name": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "origin": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "destination": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          },
+                          "latitude": {
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          },
+                          "longitude": {
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          },
+                          "altitude_ft": {
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          },
+                          "speed_kt": {
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          },
+                          "heading_deg": {
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          },
+                          "vertical_speed_fpm": {
+                            "type": [
+                              "number",
+                              "null"
+                            ]
+                          },
+                          "server": {
+                            "type": [
+                              "string",
+                              "null"
+                            ]
+                          }
+                        }
+                      }
+                    }
+                  }
                 }
               }
             }
