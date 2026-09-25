@@ -3,7 +3,7 @@
   "info": {
     "title": "Infinite Flight Tracker Live API",
     "version": "1.0.0",
-    "description": "Read-only live aircraft lookup for the Infinite Flight Tracker. Use lookupAircraft with a callsign such as DHL122. Data comes from the Infinite Flight Live API and is not simulated."
+    "description": "Read-only live aircraft lookup for the Infinite Flight Tracker. Use lookupAircraft with a callsign such as DHL122. If server is omitted, the backend searches all currently available Infinite Flight servers. Data comes from the Infinite Flight Live API and is not simulated."
   },
   "servers": [
     {
@@ -48,10 +48,9 @@
                 "casual",
                 "training",
                 "expert"
-              ],
-              "default": "expert"
+              ]
             },
-            "description": "Infinite Flight server to search."
+            "description": "Optional Infinite Flight server to search. If omitted, the backend searches all currently available servers."
           }
         ],
         "responses": {
