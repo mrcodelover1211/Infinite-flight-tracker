@@ -1,0 +1,78 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Infinite Flight Tracker Live API",
+    "version": "1.0.0",
+    "description": "Read-only live aircraft lookup for the Infinite Flight Tracker. Use lookupAircraft with a callsign such as DHL122. Data comes from the Infinite Flight Live API and is not simulated."
+  },
+  "servers": [
+    {
+      "url": "https://vbifkgzmczbndtawawre.supabase.co/functions/v1/flights"
+    }
+  ],
+  "paths": {
+    "/": {
+      "get": {
+        "operationId": "lookupAircraft",
+        "summary": "Look up a live Infinite Flight aircraft",
+        "description": "Provide an aircraft/callsign name. Prefer an exact callsign such as DHL122. Returns current live aircraft matches, including aircraft type, livery, route, position, altitude, speed, heading, vertical speed, last report, and connection state.",
+        "parameters": [
+          {
+            "name": "detail",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "lookup"
+              ]
+            },
+            "description": "Use lookup for an AI-friendly aircraft lookup."
+          },
+          {
+            "name": "aircraft",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Aircraft or callsign to find, for example DHL122, THY546, or an Infinite Flight flight ID."
+          },
+          {
+            "name": "server",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "casual",
+                "training",
+                "expert"
+              ],
+              "default": "expert"
+            },
+            "description": "Infinite Flight server to search."
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Live aircraft lookup result",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "type": "object"
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Missing aircraft name"
+          },
+          "502": {
+            "description": "Infinite Flight Live API error"
+          }
+        }
+      }
+    }
+  }
+}
