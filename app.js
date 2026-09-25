@@ -49,6 +49,8 @@ let allFlights=[];
 let visibleFlights=[];
 let selectedFlight=null;
 const uploadedAircraftImages=new Map();
+const verifiedLiveryPhotos=new Map();
+const liveryPhotoLoading=new Set();
 let aircraftVisionPipeline=null;
 let aircraftVisionLoading=null;
 let followingFlightId=null;
@@ -720,7 +722,7 @@ function renderDetails(f){
   $("details").className="";
   $("details").innerHTML='<div class="card">'+
     '<div class="detail-header"><div><div class="aircraft">'+esc(f.callsign||labelForFlight(f)||"Unknown flight")+'</div><div class="muted">'+esc(f.aircraft_type||"Unknown plane")+' · '+esc(f.livery_name||"Livery unavailable")+(f.livery_source==="live_api"||f.livery_source==="live_api_match"?' · verified':'')+'</div></div>'+addStatusBadge(f)+'</div>'+
-    '<div id="aircraftPhoto" class="aircraft-photo" data-flight-id="'+esc(String(f.flight_id||""))+'"><div class="aircraft-photo-empty"><div class="photo-empty-icon">✈</div><strong>No one uploaded an image</strong><span>Upload a plane photo for this flight.</span><label class="upload-photo-btn">Upload image<input id="aircraftPhotoUpload" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" hidden></label><div class="photo-local-note">Images stay in this browser session and are not sent to the tracker.</div></div></div>'+
+    '<div id="aircraftPhoto" class="aircraft-photo" data-flight-id="'+esc(String(f.flight_id||""))+'"><div class="aircraft-photo-empty"><div class="photo-empty-icon">✈</div><strong>No one uploaded an image</strong><span>Upload a plane photo for this flight.</span><label class="upload-photo-btn">Upload image<input id="aircraftPhotoUpload" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" hidden></label><div class="photo-local-note">No verified photo is shown unless it is tied to this exact Infinite Flight livery.</div></div></div>'+
     '<div class="chips"><span class="chip">'+esc(displayServer(selectedServer))+'</span><span class="chip">'+esc(f.virtual_organization||"No VA")+'</span><span class="chip">'+esc(aircraftClass(f))+'</span><span class="chip">'+esc(phase(f))+'</span></div>'+
     '<div class="progress-wrap"><div class="progress-track"><div class="progress-fill" style="width:'+(prog==null?0:prog)+'%"></div></div><div class="progress-caption"><span>'+esc(origin)+'</span><b>'+(prog==null?"—":prog.toFixed(1)+"%")+'</b><span>'+esc(dest)+'</span></div></div>'+
     '<div class="waypoint-next"><div class="label">NEXT WAYPOINT</div><b>'+esc(next?.identifier||next?.name||"Unavailable")+'</b><div class="mono">'+(f.distance_to_next_nm==null?"—":num(f.distance_to_next_nm,1)+" NM")+' · ETA '+(next?.eta_minutes==null?"—":num(next.eta_minutes)+" min")+(f.cross_track_nm==null?"":" · XTK "+num(f.cross_track_nm,1)+" NM")+'</div></div>'+
@@ -797,7 +799,14 @@ function localAircraftCard(aircraft,livery){
 function renderUploadedAircraftPhoto(f){
   const box=$("aircraftPhoto"); if(!box)return;
   const key=String(f.flight_id||"");
+  const liveryId=String(f.livery_id||"").trim();
   const item=uploadedAircraftImages.get(key);
+  const verified=verifiedLiveryPhotos.get(liveryId);
+  if(!item && verified?.url){
+    box.innerHTML='<img src="'+esc(verified.url)+'" alt="Verified Infinite Flight livery photo" loading="lazy"><div class="aircraft-photo-credit">✓ Verified tracker photo · Exact livery ID match</div><div class="photo-local-note">Matched to this flight using Infinite Flight liveryId '+esc(liveryId)+'</div><label class="upload-photo-btn">Upload another<input id="aircraftPhotoUpload" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" hidden></label>';
+    const input=$("aircraftPhotoUpload");if(input)input.onchange=()=>handleAircraftPhotoUpload(f,input.files?.[0]||null);
+    return;
+  }
   if(!item){
     box.innerHTML='<div class="aircraft-photo-empty"><div class="photo-empty-icon">✈</div><strong>No one uploaded an image</strong><span>Upload a plane photo for this flight.</span><label class="upload-photo-btn">Upload image<input id="aircraftPhotoUpload" type="file" accept="image/jpeg,image/png,image/webp,image/heic,image/heif" hidden></label><div class="photo-local-note">Images stay in this browser session and are not sent to the tracker.</div></div>';
     const input=$("aircraftPhotoUpload"); if(input)input.onchange=()=>handleAircraftPhotoUpload(f,input.files?.[0]||null);
@@ -807,6 +816,18 @@ function renderUploadedAircraftPhoto(f){
   box.innerHTML='<img src="'+esc(item.url)+'" alt="Uploaded aircraft photo" loading="lazy"><div class="aircraft-photo-credit">Your uploaded image · <button class="photo-remove-btn" id="removeAircraftPhoto">Remove</button></div><div class="photo-local-note">'+esc(trackerState)+'</div><div id="aircraftVision" class="aircraft-vision">Ready to analyze the aircraft.</div><button class="small-btn photo-analyze-btn" id="analyzeAircraftPhoto">Analyze aircraft</button>';
   $("removeAircraftPhoto").onclick=()=>{URL.revokeObjectURL(item.url);uploadedAircraftImages.delete(key);renderUploadedAircraftPhoto(f)};
   $("analyzeAircraftPhoto").onclick=()=>analyzeUploadedAircraftPhoto(f,item);
+}
+async function loadVerifiedLiveryPhoto(f){
+  const liveryId=String(f?.livery_id||"").trim();
+  if(!liveryId||liveryPhotoLoading.has(liveryId)||verifiedLiveryPhotos.has(liveryId))return;
+  liveryPhotoLoading.add(liveryId);
+  try{
+    const r=await fetch(API+"/photo?liveryId="+encodeURIComponent(liveryId),{cache:"no-store"});
+    const d=await r.json().catch(()=>({}));
+    const photo=d?.photos?.[0];
+    verifiedLiveryPhotos.set(liveryId,photo||null);
+    if(photo?.url)renderUploadedAircraftPhoto(f);
+  }catch{}finally{liveryPhotoLoading.delete(liveryId);}
 }
 async function handleAircraftPhotoUpload(f,file){
   if(!file||!file.type.startsWith("image/"))return;
@@ -821,6 +842,9 @@ async function handleAircraftPhotoUpload(f,file){
     form.append("image",file,file.name);
     form.append("flight_id",String(f.flight_id||""));
     form.append("server",String(f.server||selectedServer||""));
+    form.append("livery_id",String(f.livery_id||""));
+    form.append("aircraft_id",String(f.aircraft_id||""));
+    form.append("livery_name",String(f.livery_name||""));
     const controller=new AbortController();
     const timer=setTimeout(()=>controller.abort(),30000);
     const response=await fetch(API+"/photo",{method:"POST",body:form,signal:controller.signal});
