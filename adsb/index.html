@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ADSB Flight Tracker</title>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<header>
+  <div>
+    <strong>✈ ADSB Flight Tracker</strong>
+    <span id="status">Connecting…</span>
+  </div>
+  <div class="controls">
+    <label>Latitude <input id="lat" value="36.8065" inputmode="decimal"></label>
+    <label>Longitude <input id="lon" value="10.1815" inputmode="decimal"></label>
+    <label>Radius <input id="radius" value="150" inputmode="numeric"></label>
+    <button id="refresh" type="button">Refresh</button>
+    <button id="locate" type="button">Tunis</button>
+  </div>
+</header>
+<main>
+  <section id="map" aria-label="Live ADS-B aircraft map"></section>
+  <aside>
+    <div class="head"><b>Live aircraft</b><span id="count">0</span></div>
+    <input id="search" placeholder="Search callsign, registration, ICAO…" autocomplete="off">
+    <div id="list"></div>
+    <div id="detail"><span>Select an aircraft.</span></div>
+  </aside>
+</main>
+<footer>
+  <span>Live data: ADSB.lol · Map © OpenStreetMap contributors</span>
+  <span id="updated">—</span>
+</footer>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<script src="renderer.js"></script>
+</body>
+</html>
