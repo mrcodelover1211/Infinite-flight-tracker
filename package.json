@@ -1,0 +1,28 @@
+{
+  "name": "infinite-flight-tracker-adsb",
+  "version": "0.1.0",
+  "private": true,
+  "description": "Desktop live ADS-B flight tracker using Leaflet and ADSB.lol",
+  "main": "electron/main.cjs",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis"
+  },
+  "devDependencies": {
+    "electron": "^38.0.0",
+    "electron-builder": "^26.0.0"
+  },
+  "build": {
+    "appId": "com.mrcodelover1211.adsbtracker",
+    "productName": "ADSB Flight Tracker",
+    "files": [
+      "electron/**/*",
+      "adsb/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": "nsis",
+      "artifactName": "ADSB-Flight-Tracker-Setup-${version}.${ext}"
+    }
+  }
+}
